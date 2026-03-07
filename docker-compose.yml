@@ -1,0 +1,16 @@
+version: '3.9'
+services:
+  web:
+    build: .
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env.example
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: oops
+    ports:
+      - '5432:5432'
