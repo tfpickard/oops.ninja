@@ -10,3 +10,8 @@ input,select,textarea,button { width: 100%; border-radius: 8px; border: 1px soli
 button { cursor: pointer; background: #1d2d57; font-weight: 600; }
 small { color: #9aacd8; }
 pre { white-space: pre-wrap; }
+
+ul{margin:0; padding-left:1rem;}
+li{margin:.35rem 0;}
+.inline-button{width:auto; display:inline-block; margin-left:.5rem; padding:.3rem .6rem; font-size:.8rem;}
+.alert{border:1px solid #6b3f4d; background:#2a131b; color:#ffdce6; border-radius:8px; padding:.6rem;}
