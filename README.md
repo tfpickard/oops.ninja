@@ -4,14 +4,14 @@ Production-oriented SaaS platform for controlled narrative generation and operat
 
 ## Product status
 
-### Phase 1 complete
+### Studio experience
 - Landing page and operational dashboard UX
 - Generation + rewrite APIs with moderation, rate limiting, and live LLM provider integration (OpenAI/Anthropic/OpenRouter)
 - Saved generation history and usage snapshots
 - API key lifecycle (create/list/delete)
 - OpenAPI endpoint and documentation route
 
-### Phase 2 complete
+### Platform capabilities
 - Admin command center
 - Organization management API
 - Billing profile endpoint and portal links contract

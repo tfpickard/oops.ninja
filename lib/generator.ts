@@ -10,7 +10,7 @@ const variants: VariantKind[] = [
 ];
 
 export function generateVariants(request: GenerationRequest) {
-  const intro = `Mode: ${request.mode}. Audience: ${request.audience}. Medium: ${request.medium}.`;
+  const intro = `Mode: ${request.mode}. Audience: ${request.audience}. Medium: ${request.medium}. Obnoxiousness: ${request.obnoxiousness}/100. Syrupy deference: ${request.sycophancy}/100.`;
   return variants.map((variant) => ({
     kind: variant,
     text: `${intro} ${variant} response: I recognize the impact of this incident (${request.scenario}). I am taking immediate corrective action and will provide an accountable follow-through update.`,

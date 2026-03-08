@@ -71,6 +71,8 @@ export const generationRequestSchema = z.object({
   ]).default('calibrated ownership'),
   audience: z.string().default('coworker'),
   medium: z.string().default('email'),
+  obnoxiousness: z.number().int().min(0).max(100).default(24),
+  sycophancy: z.number().int().min(0).max(100).default(18),
   llm: llmConfigSchema,
 });
 

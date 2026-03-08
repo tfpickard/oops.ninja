@@ -81,6 +81,10 @@ function extractTextFromResponseOutput(output: unknown): string {
   return '';
 }
 
+function describeDial(value: number, levels: Array<[number, string]>) {
+  return levels.find(([max]) => value <= max)?.[1] ?? levels[levels.length - 1][1];
+}
+
 async function invokeOpenAi(llm: ResolvedLlmConfig, messages: OpenAiMessage[]) {
   if (isGpt5Model(llm.model)) {
     const res = await fetch('https://api.openai.com/v1/responses', {
@@ -183,9 +187,24 @@ async function invokeModel(llm: LlmConfig, messages: OpenAiMessage[]) {
 }
 
 export async function generateVariantsWithLlm(request: GenerationRequest) {
+  const obnoxiousnessProfile = describeDial(request.obnoxiousness, [
+    [20, 'restrained and almost invisible'],
+    [40, 'controlled with a faintly polished edge'],
+    [60, 'showy and a little self-conscious'],
+    [80, 'performative and impossible to miss'],
+    [100, 'maximalist, theatrical, and borderline insufferable'],
+  ]);
+  const sycophancyProfile = describeDial(request.sycophancy, [
+    [20, 'plainspoken and low-flattery'],
+    [40, 'respectful without fawning'],
+    [60, 'warmly deferential'],
+    [80, 'velvety and eager to please'],
+    [100, 'groveling, syrupy, and shamelessly flattering'],
+  ]);
   const prompt = `Create six apology variants for the scenario below.
 Return JSON array only with objects containing {"kind": string, "text": string}.
 Use these exact kinds in order: ${variantKinds.join(', ')}.
+Honor the style dials materially. Low values should stay restrained. High values should become intentionally over-the-top while still sounding coherent.
 
 Scenario: ${request.scenario}
 Mode: ${request.mode}
@@ -193,7 +212,9 @@ Tone: ${request.tone}
 Formality: ${request.formality}
 Accountability posture: ${request.accountabilityPosture}
 Audience: ${request.audience}
-Medium: ${request.medium}`;
+Medium: ${request.medium}
+Obnoxiousness dial: ${request.obnoxiousness}/100 (${obnoxiousnessProfile})
+Syrupy kiss-ass dial: ${request.sycophancy}/100 (${sycophancyProfile})`;
 
   const output = await invokeModel(request.llm, [
     {

@@ -11,6 +11,8 @@ describe('generator', () => {
       accountabilityPosture: 'calibrated ownership',
       audience: 'customer',
       medium: 'email',
+      obnoxiousness: 20,
+      sycophancy: 15,
       llm: { provider: 'openai', model: 'gpt-5.3' },
     });
 
