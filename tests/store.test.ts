@@ -20,7 +20,7 @@ describe('store phase2', () => {
   it('creates and retrieves shared generation artifacts', () => {
     const generation = createGeneration('test-user', 'Missed stakeholder sync', 'Executive apology');
     saveGenerationVariants(generation.id, [
-      { kind: 'Most direct', text: 'I missed the sync and own the gap.' },
+      { kind: 'Most evasive', text: 'Somewhere in the sync fog, the point got lost.' },
     ]);
 
     const share = createShareToken('test-user', generation.id, 1);

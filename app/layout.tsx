@@ -1,14 +1,14 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { Manrope, Space_Grotesk } from 'next/font/google';
+import { Plus_Jakarta_Sans, Sora } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
 
-const bodyFont = Manrope({
+const bodyFont = Plus_Jakarta_Sans({
   subsets: ['latin'],
   variable: '--font-body',
 });
 
-const displayFont = Space_Grotesk({
+const displayFont = Sora({
   subsets: ['latin'],
   variable: '--font-display',
 });

@@ -1,57 +1,62 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { GeneratorClient } from '@/components/generator-client';
+import { SiteShell } from '@/components/site-shell';
 
 export const dynamic = 'force-dynamic';
 
 export default function DashboardPage() {
   return (
-    <main className="page-shell">
-      <section className="hero hero--console card">
-        <div className="hero__content">
-          <div className="hero__badge-row">
-            <div className="logo-mark" aria-hidden="true">ON</div>
-            <div className="hero__eyebrow">Narrative Studio</div>
+    <SiteShell
+      current="dashboard"
+      density="compact"
+      eyebrow="Narrative Studio"
+      title="Compose with clarity and control."
+      description="Keep the primary workflow calm and obvious: define the situation, steer the posture, compare polished variants, and reveal raw JSON only when you need it."
+      actions={
+        <>
+          <Link className="button-link" href="/docs">
+            Explore the API
+          </Link>
+          <Link className="button-link button-link--ghost" href="/sdk">
+            Review the SDK
+          </Link>
+        </>
+      }
+      aside={
+        <div className="shell-preview">
+          <div className="shell-preview__art" aria-hidden="true">
+            <Image
+              src="/generated/console-orbit.svg"
+              alt=""
+              width={760}
+              height={560}
+              className="shell-preview__art-image shell-preview__art-image--console"
+            />
           </div>
-          <h1>Write the version of events you actually want to send.</h1>
-          <p>
-            Shape the tone, tune the theatrics, and turn rough incident notes into polished responses that
-            feel deliberate instead of improvised.
-          </p>
-          <div className="hero__links">
-            <Link className="button-link" href="/docs">Explore the API</Link>
-            <Link className="button-link button-link--ghost" href="/sdk">Review the SDK</Link>
-          </div>
-        </div>
-        <div className="hero__preview">
-          <div className="hero__preview-card">
-            <p className="eyebrow">Positioning</p>
-            <h2>Calibrated narrative control with enough personality to feel human.</h2>
+          <div className="shell-preview__screen shell-preview__screen--tall">
+            <div className="shell-preview__halo" aria-hidden="true" />
+            <p className="eyebrow">Console direction</p>
+            <h2>Sharper hierarchy. Quieter chrome. Faster decisions.</h2>
             <p>
-              Push a response toward blunt, polished, diplomatic, or gloriously overcooked without dropping
-              into raw prompt engineering.
+              Compose and results own the page. Rewrite, history, billing, and workspace tools stay close,
+              but out of the way.
             </p>
           </div>
-          <div className="hero__mini-grid">
-            <div className="hero__mini-card">
-              <span>Studio</span>
-              <strong>Provider-aware</strong>
-            </div>
-            <div className="hero__mini-card">
+          <div className="shell-preview__stack">
+            <div className="shell-preview__tile">
               <span>Outputs</span>
-              <strong>Structured variants</strong>
+              <strong>Selected result view</strong>
             </div>
-            <div className="hero__mini-card">
-              <span>Guardrails</span>
-              <strong>Policy-checked</strong>
-            </div>
-            <div className="hero__mini-card">
-              <span>Sharing</span>
-              <strong>Link-ready</strong>
+            <div className="shell-preview__tile">
+              <span>Diagnostics</span>
+              <strong>Hidden request/response JSON</strong>
             </div>
           </div>
         </div>
-      </section>
+      }
+    >
       <GeneratorClient />
-    </main>
+    </SiteShell>
   );
 }

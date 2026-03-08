@@ -4,11 +4,17 @@ export const typescriptSdkSnippet = `export class OopsNinjaClient {
   async generate(payload: {
     scenario: string;
     mode: string;
-    tone: 'empathetic' | 'neutral' | 'professional' | 'authoritative';
-    formality?: 'casual' | 'standard' | 'executive';
+    tone: string;
+    formality?: string;
     accountabilityPosture?: string;
     audience?: string;
     medium?: string;
+    llm?: {
+      provider?: 'openai' | 'anthropic' | 'openrouter';
+      model?: string;
+      reasoningEffort?: 'minimal' | 'none' | 'low' | 'medium' | 'high' | 'xhigh';
+      verbosity?: 'low' | 'medium' | 'high';
+    };
   }) {
     const response = await fetch(\`${'${this.baseUrl}'}/api/v1/generate\`, {
       method: 'POST',

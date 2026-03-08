@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { generateVariants, rewriteText } from '@/lib/generator';
 
 describe('generator', () => {
-  it('returns six variants', () => {
+  it('returns the full variant deck', () => {
     const variants = generateVariants({
       scenario: 'I deployed a broken release to production.',
       mode: 'Technical explanation',
@@ -13,10 +13,10 @@ describe('generator', () => {
       medium: 'email',
       obnoxiousness: 20,
       sycophancy: 15,
-      llm: { provider: 'openai', model: 'gpt-5.3' },
+      llm: { provider: 'openai', model: 'gpt-5.2', reasoningEffort: 'none', verbosity: 'medium' },
     });
 
-    expect(variants).toHaveLength(6);
+    expect(variants).toHaveLength(10);
   });
 
   it('rewrites text with transform prefix', () => {

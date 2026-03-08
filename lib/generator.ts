@@ -1,17 +1,9 @@
-import type { GenerationRequest, VariantKind } from './contracts';
-
-const variants: VariantKind[] = [
-  'Most sincere',
-  'Most concise',
-  'Most polished',
-  'Most believable',
-  'Most diplomatic',
-  'Most direct',
-];
+import { variantKinds } from './contracts';
+import type { GenerationRequest } from './contracts';
 
 export function generateVariants(request: GenerationRequest) {
   const intro = `Mode: ${request.mode}. Audience: ${request.audience}. Medium: ${request.medium}. Obnoxiousness: ${request.obnoxiousness}/100. Syrupy deference: ${request.sycophancy}/100.`;
-  return variants.map((variant) => ({
+  return variantKinds.map((variant) => ({
     kind: variant,
     text: `${intro} ${variant} response: I recognize the impact of this incident (${request.scenario}). I am taking immediate corrective action and will provide an accountable follow-through update.`,
   }));
