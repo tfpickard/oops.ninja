@@ -1,0 +1,27 @@
+<svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="orbitOuter" x1="24" y1="18" x2="136" y2="142" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EFF6FF" stop-opacity="0.88"/>
+      <stop offset="0.52" stop-color="#9AD8FF" stop-opacity="0.94"/>
+      <stop offset="1" stop-color="#5AA0E8" stop-opacity="0.68"/>
+    </linearGradient>
+    <linearGradient id="orbitInner" x1="48" y1="38" x2="118" y2="126" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7FBFF"/>
+      <stop offset="1" stop-color="#9BCFFF"/>
+    </linearGradient>
+    <linearGradient id="slash" x1="101" y1="26" x2="58" y2="131" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F9FCFF"/>
+      <stop offset="1" stop-color="#7CCBFF"/>
+    </linearGradient>
+    <filter id="softGlow" x="0" y="0" width="160" height="160" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+  </defs>
+  <circle cx="80" cy="80" r="56" stroke="url(#orbitOuter)" stroke-width="7" opacity="0.3"/>
+  <circle cx="80" cy="80" r="56" stroke="url(#orbitOuter)" stroke-width="20" opacity="0.08" filter="url(#softGlow)"/>
+  <circle cx="80" cy="80" r="36" stroke="url(#orbitInner)" stroke-width="14"/>
+  <circle cx="80" cy="80" r="6" fill="#F5FBFF"/>
+  <path d="M102 30L63 130" stroke="url(#slash)" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="44" cy="54" r="4" fill="#D7ECFF" opacity="0.84"/>
+  <circle cx="121" cy="102" r="4" fill="#D7ECFF" opacity="0.56"/>
+</svg>

@@ -1,0 +1,18 @@
+<svg width="320" height="220" viewBox="0 0 320 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="deckGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(182 94) rotate(125.537) scale(116.673 121.096)">
+      <stop stop-color="#8FD5FF" stop-opacity="0.62"/>
+      <stop offset="0.5" stop-color="#5A8EBB" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#08111A" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="320" height="220" rx="28" fill="#08111A"/>
+  <circle cx="184" cy="92" r="96" fill="url(#deckGlow)"/>
+  <ellipse cx="182" cy="92" rx="84" ry="56" stroke="#DDF1FF" stroke-opacity="0.18" stroke-width="2"/>
+  <ellipse cx="182" cy="92" rx="52" ry="34" stroke="#F4FAFF" stroke-opacity="0.76" stroke-width="4"/>
+  <circle cx="182" cy="92" r="6" fill="#F7FBFF"/>
+  <rect x="52" y="144" width="216" height="28" rx="14" fill="#0F1B27" stroke="#D7EDFF" stroke-opacity="0.08"/>
+  <rect x="76" y="65" width="84" height="14" rx="7" fill="#F2F8FF" fill-opacity="0.16"/>
+  <rect x="76" y="90" width="112" height="10" rx="5" fill="#D7ECFF" fill-opacity="0.18"/>
+  <rect x="76" y="108" width="96" height="10" rx="5" fill="#D7ECFF" fill-opacity="0.12"/>
+</svg>
