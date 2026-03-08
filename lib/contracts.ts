@@ -57,6 +57,11 @@ export const llmConfigSchema = z.object({
   model: z.string().min(3).default('gpt-5.3'),
 });
 
+const llmDefaults = {
+  provider: 'openai' as const,
+  model: 'gpt-5.3',
+};
+
 export const generationRequestSchema = z.object({
   scenario: z.string().min(10),
   mode: z.enum(generationModes),
@@ -73,13 +78,13 @@ export const generationRequestSchema = z.object({
   medium: z.string().default('email'),
   obnoxiousness: z.number().int().min(0).max(100).default(24),
   sycophancy: z.number().int().min(0).max(100).default(18),
-  llm: llmConfigSchema,
+  llm: llmConfigSchema.default(llmDefaults),
 });
 
 export const rewriteRequestSchema = z.object({
   text: z.string().min(5),
   transform: z.string().min(3),
-  llm: llmConfigSchema,
+  llm: llmConfigSchema.default(llmDefaults),
 });
 
 export type LlmConfig = z.infer<typeof llmConfigSchema>;

@@ -5,6 +5,7 @@ type VariantOutput = { kind: VariantKind; text: string };
 type ResolvedLlmConfig = LlmConfig & { apiKey: string };
 
 type OpenAiMessage = { role: 'system' | 'user'; content: string };
+type JsonRecord = Record<string, unknown>;
 
 const providerEnvVars = {
   openai: 'OPENAI_API_KEY',
@@ -17,6 +18,9 @@ const providerLabels = {
   anthropic: 'Anthropic',
   openrouter: 'OpenRouter',
 } as const;
+
+const requestTimeoutMs = 15000;
+const maxOutputTokens = 700;
 
 function resolveLlmConfig(llm: LlmConfig): ResolvedLlmConfig {
   const envVar = providerEnvVars[llm.provider];
@@ -33,9 +37,16 @@ function resolveLlmConfig(llm: LlmConfig): ResolvedLlmConfig {
 }
 
 function parseJsonPayload(raw: string) {
-  const fenced = raw.match(/```json\s*([\s\S]*?)```/i);
-  const source = fenced?.[1] ?? raw;
-  return JSON.parse(source);
+  const jsonFenced = raw.match(/```json\s*([\s\S]*?)```/i);
+  const genericFenced = raw.match(/```\s*([\s\S]*?)```/);
+  const source = (jsonFenced?.[1] ?? genericFenced?.[1] ?? raw).trim();
+
+  try {
+    return JSON.parse(source);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to parse JSON from model response: ${detail}`);
+  }
 }
 
 function normalizeVariants(payload: unknown): VariantOutput[] {
@@ -85,9 +96,61 @@ function describeDial(value: number, levels: Array<[number, string]>) {
   return levels.find(([max]) => value <= max)?.[1] ?? levels[levels.length - 1][1];
 }
 
+async function fetchJsonWithTimeout(
+  url: string,
+  init: RequestInit,
+  provider: keyof typeof providerLabels,
+): Promise<{ response: Response; data: JsonRecord }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), requestTimeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+    const data = (await response.json()) as JsonRecord;
+    return { response, data };
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`${providerLabels[provider]} request timed out after ${requestTimeoutMs}ms.`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function invokeOpenAi(llm: ResolvedLlmConfig, messages: OpenAiMessage[]) {
   if (isGpt5Model(llm.model)) {
-    const res = await fetch('https://api.openai.com/v1/responses', {
+    const { response, data } = await fetchJsonWithTimeout(
+      'https://api.openai.com/v1/responses',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          Authorization: `Bearer ${llm.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: llm.model,
+          max_output_tokens: maxOutputTokens,
+          input: messages,
+        }),
+      },
+      'openai',
+    );
+
+    if (!response.ok) {
+      throw new Error((data.error as JsonRecord | undefined)?.message as string ?? 'OpenAI request failed.');
+    }
+
+    const outputText = typeof data.output_text === 'string' ? data.output_text : extractTextFromResponseOutput(data.output);
+    return outputText;
+  }
+
+  const { response, data } = await fetchJsonWithTimeout(
+    'https://api.openai.com/v1/chat/completions',
+    {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -95,87 +158,75 @@ async function invokeOpenAi(llm: ResolvedLlmConfig, messages: OpenAiMessage[]) {
       },
       body: JSON.stringify({
         model: llm.model,
-        input: messages,
+        max_tokens: maxOutputTokens,
+        temperature: 0.7,
+        messages,
       }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data?.error?.message ?? 'OpenAI request failed.');
-    }
-
-    const outputText = typeof data?.output_text === 'string' ? data.output_text : extractTextFromResponseOutput(data?.output);
-    return outputText;
-  }
-
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      Authorization: `Bearer ${llm.apiKey}`,
     },
-    body: JSON.stringify({
-      model: llm.model,
-      temperature: 0.7,
-      messages,
-    }),
-  });
+    'openai',
+  );
 
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data?.error?.message ?? 'OpenAI request failed.');
+  if (!response.ok) {
+    throw new Error((data.error as JsonRecord | undefined)?.message as string ?? 'OpenAI request failed.');
   }
 
-  return data?.choices?.[0]?.message?.content as string;
+  return ((data.choices as Array<JsonRecord> | undefined)?.[0]?.message as JsonRecord | undefined)?.content as string;
 }
 
 async function invokeAnthropic(llm: ResolvedLlmConfig, messages: OpenAiMessage[]) {
   const userPrompt = messages.filter((entry) => entry.role === 'user').map((entry) => entry.content).join('\n\n');
   const systemPrompt = messages.filter((entry) => entry.role === 'system').map((entry) => entry.content).join('\n\n');
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': llm.apiKey,
-      'anthropic-version': '2023-06-01',
+  const { response, data } = await fetchJsonWithTimeout(
+    'https://api.anthropic.com/v1/messages',
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': llm.apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: llm.model,
+        max_tokens: maxOutputTokens,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+      }),
     },
-    body: JSON.stringify({
-      model: llm.model,
-      max_tokens: 700,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-    }),
-  });
+    'anthropic',
+  );
 
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data?.error?.message ?? 'Anthropic request failed.');
+  if (!response.ok) {
+    throw new Error((data.error as JsonRecord | undefined)?.message as string ?? 'Anthropic request failed.');
   }
 
-  return data?.content?.[0]?.text as string;
+  return ((data.content as Array<JsonRecord> | undefined)?.[0]?.text as string) ?? '';
 }
 
 async function invokeOpenRouter(llm: ResolvedLlmConfig, messages: OpenAiMessage[]) {
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      Authorization: `Bearer ${llm.apiKey}`,
+  const { response, data } = await fetchJsonWithTimeout(
+    'https://openrouter.ai/api/v1/chat/completions',
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        Authorization: `Bearer ${llm.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: llm.model,
+        max_tokens: maxOutputTokens,
+        temperature: 0.7,
+        messages,
+      }),
     },
-    body: JSON.stringify({
-      model: llm.model,
-      temperature: 0.7,
-      messages,
-    }),
-  });
+    'openrouter',
+  );
 
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data?.error?.message ?? 'OpenRouter request failed.');
+  if (!response.ok) {
+    throw new Error((data.error as JsonRecord | undefined)?.message as string ?? 'OpenRouter request failed.');
   }
 
-  return data?.choices?.[0]?.message?.content as string;
+  return ((data.choices as Array<JsonRecord> | undefined)?.[0]?.message as JsonRecord | undefined)?.content as string;
 }
 
 async function invokeModel(llm: LlmConfig, messages: OpenAiMessage[]) {

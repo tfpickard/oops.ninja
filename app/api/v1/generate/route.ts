@@ -31,6 +31,7 @@ export async function POST(request: Request) {
 
     return ok({ generationId: record.id, variants }, requestId);
   } catch (err) {
-    return fail((err as Error).message, requestId, 502, 'LLM_PROVIDER_ERROR');
+    console.error('LLM provider error during generation', { requestId, error: err });
+    return fail('LLM provider failed to generate variants. Please try again.', requestId, 502, 'LLM_PROVIDER_ERROR');
   }
 }

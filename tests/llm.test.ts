@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { rewriteWithLlm } from '@/lib/llm';
+import { generateVariantsWithLlm, rewriteWithLlm } from '@/lib/llm';
 import type { LlmConfig } from '@/lib/contracts';
 
 const originalFetch = global.fetch;
@@ -38,6 +38,7 @@ describe('llm provider integration', () => {
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
     const headers = (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
     expect(body.model).toBe('gpt-5.3');
+    expect(body.max_output_tokens).toBe(700);
     expect(body.temperature).toBeUndefined();
     expect(Array.isArray(body.input)).toBe(true);
     expect(headers.Authorization).toBe('Bearer env-openai-key-123456789');
@@ -66,6 +67,7 @@ describe('llm provider integration', () => {
 
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
     expect(body.model).toBe('gpt-4.1-mini');
+    expect(body.max_tokens).toBe(700);
     expect(body.temperature).toBe(0.7);
     expect(Array.isArray(body.messages)).toBe(true);
   });
@@ -79,5 +81,75 @@ describe('llm provider integration', () => {
         model: 'gpt-5.3',
       }),
     ).rejects.toThrow('OpenAI API key is not configured. Set OPENAI_API_KEY in the server environment.');
+  });
+
+  it('normalizes generation variants from generic fenced JSON output', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        output_text: `\`\`\`
+[
+  { "kind": "Most sincere", "text": "I own this and I am fixing it now." },
+  { "kind": "Most direct", "text": "I missed this. Here is the correction plan." }
+]
+\`\`\``,
+      }),
+    });
+    global.fetch = fetchMock as typeof fetch;
+    process.env.OPENAI_API_KEY = 'env-openai-key-123456789';
+
+    const variants = await generateVariantsWithLlm({
+      scenario: 'I missed a major client handoff and need to repair trust.',
+      mode: 'Professional apology',
+      tone: 'professional',
+      formality: 'executive',
+      accountabilityPosture: 'calibrated ownership',
+      audience: 'client',
+      medium: 'email',
+      obnoxiousness: 10,
+      sycophancy: 15,
+      llm: {
+        provider: 'openai',
+        model: 'gpt-5.3',
+      },
+    });
+
+    expect(variants).toHaveLength(6);
+    expect(variants[0]).toEqual({
+      kind: 'Most sincere',
+      text: 'I own this and I am fixing it now.',
+    });
+    expect(variants[5]).toEqual({
+      kind: 'Most direct',
+      text: 'I missed this. Here is the correction plan.',
+    });
+    expect(variants[1].text).toContain('Unable to generate this variant.');
+  });
+
+  it('returns a clear error when model JSON cannot be parsed', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ output_text: '```json\nnot-valid-json\n```' }),
+    });
+    global.fetch = fetchMock as typeof fetch;
+    process.env.OPENAI_API_KEY = 'env-openai-key-123456789';
+
+    await expect(
+      generateVariantsWithLlm({
+        scenario: 'I missed a major client handoff and need to repair trust.',
+        mode: 'Professional apology',
+        tone: 'professional',
+        formality: 'executive',
+        accountabilityPosture: 'calibrated ownership',
+        audience: 'client',
+        medium: 'email',
+        obnoxiousness: 10,
+        sycophancy: 15,
+        llm: {
+          provider: 'openai',
+          model: 'gpt-5.3',
+        },
+      }),
+    ).rejects.toThrow('Failed to parse JSON from model response:');
   });
 });

@@ -168,8 +168,9 @@ export function GeneratorClient() {
   }, []);
 
   function validateLlmConfig() {
-    if (!form.llm.model.trim()) {
-      setError('Model is required to use the configured provider.');
+    const model = form.llm.model.trim();
+    if (!model || model.length < 3) {
+      setError('Model is required and must be at least 3 characters long.');
       return false;
     }
 

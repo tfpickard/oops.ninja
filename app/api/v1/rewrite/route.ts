@@ -27,6 +27,7 @@ export async function POST(request: Request) {
   try {
     return ok({ output: await rewriteWithLlm(parsed.data.text, parsed.data.transform, parsed.data.llm) }, requestId);
   } catch (err) {
-    return fail((err as Error).message, requestId, 502, 'LLM_PROVIDER_ERROR');
+    console.error('LLM provider error during rewrite', { requestId, error: err });
+    return fail('LLM provider failed to process the rewrite request. Please try again.', requestId, 502, 'LLM_PROVIDER_ERROR');
   }
 }
