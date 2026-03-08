@@ -43,6 +43,21 @@ export const generationModes = [
   'Extremely concise “my bad” in enterprise format',
 ] as const;
 
+export const variantKinds = [
+  'Most sincere',
+  'Most concise',
+  'Most polished',
+  'Most believable',
+  'Most diplomatic',
+  'Most direct',
+] as const;
+
+export const llmConfigSchema = z.object({
+  provider: z.enum(['openai', 'anthropic', 'openrouter']).default('openai'),
+  model: z.string().min(3).default('gpt-4.1-mini'),
+  apiKey: z.string().min(10),
+});
+
 export const generationRequestSchema = z.object({
   scenario: z.string().min(10),
   mode: z.enum(generationModes),
@@ -57,20 +72,16 @@ export const generationRequestSchema = z.object({
   ]).default('calibrated ownership'),
   audience: z.string().default('coworker'),
   medium: z.string().default('email'),
+  llm: llmConfigSchema,
 });
 
 export const rewriteRequestSchema = z.object({
   text: z.string().min(5),
   transform: z.string().min(3),
+  llm: llmConfigSchema,
 });
 
+export type LlmConfig = z.infer<typeof llmConfigSchema>;
 export type GenerationRequest = z.infer<typeof generationRequestSchema>;
 export type RewriteRequest = z.infer<typeof rewriteRequestSchema>;
-
-export type VariantKind =
-  | 'Most sincere'
-  | 'Most concise'
-  | 'Most polished'
-  | 'Most believable'
-  | 'Most diplomatic'
-  | 'Most direct';
+export type VariantKind = (typeof variantKinds)[number];

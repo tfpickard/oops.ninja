@@ -6,7 +6,7 @@ Production-oriented SaaS platform for controlled narrative generation and operat
 
 ### Phase 1 complete
 - Landing page and operational dashboard UX
-- Generation + rewrite APIs with moderation and rate limiting
+- Generation + rewrite APIs with moderation, rate limiting, and live LLM provider integration (OpenAI/Anthropic/OpenRouter)
 - Saved generation history and usage snapshots
 - API key lifecycle (create/list/delete)
 - OpenAPI endpoint and documentation route
@@ -39,7 +39,7 @@ npm run build
 ```bash
 curl -X POST http://localhost:3000/api/v1/generate \
   -H 'content-type: application/json' \
-  -d '{"scenario":"I missed a customer escalation handoff.","mode":"Professional apology","tone":"professional","formality":"executive","accountabilityPosture":"calibrated ownership","audience":"customer","medium":"email"}'
+  -d '{"scenario":"I missed a customer escalation handoff.","mode":"Professional apology","tone":"professional","formality":"executive","accountabilityPosture":"calibrated ownership","audience":"customer","medium":"email","llm":{"provider":"openai","model":"gpt-4.1-mini","apiKey":"$OPENAI_API_KEY"}}'
 
 curl http://localhost:3000/api/v1/generations?limit=10&offset=0
 curl http://localhost:3000/api/v1/analytics/summary
