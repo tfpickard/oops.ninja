@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+export const llmProviders = ['openai', 'anthropic', 'openrouter'] as const;
+export const openAiGpt5VerbosityOptions = ['low', 'medium', 'high'] as const;
+export const openAiGpt5ReasoningEffortOptions = ['minimal', 'none', 'low', 'medium', 'high', 'xhigh'] as const;
+export type OpenAiGpt5Verbosity = (typeof openAiGpt5VerbosityOptions)[number];
+export type OpenAiGpt5ReasoningEffort = (typeof openAiGpt5ReasoningEffortOptions)[number];
+
 export const generationModes = [
   'Sincere apology',
   'Professional apology',
@@ -123,22 +129,91 @@ export const mediumOptions = [
 ] as const;
 
 export const variantKinds = [
-  'Most sincere',
   'Most concise',
   'Most polished',
   'Most believable',
   'Most diplomatic',
-  'Most direct',
+  'Most kiss-ass',
+  'Most duplicitous',
+  'Most evasive',
+  'Most defensive',
+  'Most apathetic',
+  'Most elaborate',
 ] as const;
 
+export function isOpenAiGpt5Family(provider: string, model: string) {
+  return provider === 'openai' && /^gpt-5(?:[.-]|$)/i.test(model.trim());
+}
+
+export function getSupportedOpenAiGpt5ReasoningEfforts(model: string): ReadonlyArray<OpenAiGpt5ReasoningEffort> {
+  const normalized = model.trim().toLowerCase();
+
+  if (normalized.startsWith('gpt-5.2-pro')) return ['medium', 'high', 'xhigh'] as const;
+  if (normalized.startsWith('gpt-5-pro')) return ['high'] as const;
+  if (normalized.startsWith('gpt-5.2-codex')) return ['low', 'medium', 'high', 'xhigh'] as const;
+  if (normalized.startsWith('gpt-5.2')) return ['none', 'low', 'medium', 'high', 'xhigh'] as const;
+  if (normalized.startsWith('gpt-5.1')) return ['none', 'low', 'medium', 'high'] as const;
+  if (normalized.startsWith('gpt-5')) return ['minimal', 'low', 'medium', 'high'] as const;
+
+  return [] as const;
+}
+
+export function getDefaultOpenAiGpt5ReasoningEffort(model: string): OpenAiGpt5ReasoningEffort {
+  const normalized = model.trim().toLowerCase();
+
+  if (normalized.startsWith('gpt-5.2-pro')) return 'medium' as const;
+  if (normalized.startsWith('gpt-5-pro')) return 'high' as const;
+  if (normalized.startsWith('gpt-5.2')) return 'none' as const;
+  return 'medium' as const;
+}
+
+export function getDefaultOpenAiGpt5Verbosity(): OpenAiGpt5Verbosity {
+  return 'medium' as const;
+}
+
 export const llmConfigSchema = z.object({
-  provider: z.enum(['openai', 'anthropic', 'openrouter']).default('openai'),
-  model: z.string().min(3).default('gpt-5.3'),
+  provider: z.enum(llmProviders).default('openai'),
+  model: z.string().min(3).default('gpt-5.2'),
+  reasoningEffort: z.enum(openAiGpt5ReasoningEffortOptions).optional(),
+  verbosity: z.enum(openAiGpt5VerbosityOptions).optional(),
+}).superRefine((value, ctx) => {
+  const supportsGpt5Controls = isOpenAiGpt5Family(value.provider, value.model);
+
+  if (!supportsGpt5Controls) {
+    if (value.reasoningEffort) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Reasoning effort is only supported for OpenAI GPT-5 family models.',
+        path: ['reasoningEffort'],
+      });
+    }
+    if (value.verbosity) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Verbosity is only supported for OpenAI GPT-5 family models.',
+        path: ['verbosity'],
+      });
+    }
+    return;
+  }
+
+  if (value.reasoningEffort) {
+    const supportedReasoningEfforts = getSupportedOpenAiGpt5ReasoningEfforts(value.model);
+    if (!supportedReasoningEfforts.includes(value.reasoningEffort)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Reasoning effort "${value.reasoningEffort}" is not supported for ${value.model}.`,
+        path: ['reasoningEffort'],
+      });
+    }
+  }
 });
 
 const llmDefaults = {
   provider: 'openai' as const,
-  model: 'gpt-5.3',
+  model: 'gpt-5.2',
+  reasoningEffort: getDefaultOpenAiGpt5ReasoningEffort('gpt-5.2'),
+  verbosity: getDefaultOpenAiGpt5Verbosity(),
 };
 
 export const generationRequestSchema = z.object({

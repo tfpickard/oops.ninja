@@ -41,7 +41,7 @@ npm run build
 ```bash
 curl -X POST http://localhost:3000/api/v1/generate \
   -H 'content-type: application/json' \
-  -d '{"scenario":"I missed a customer escalation handoff.","mode":"Professional apology","tone":"professional","formality":"executive","accountabilityPosture":"calibrated ownership","audience":"customer","medium":"email","llm":{"provider":"openai","model":"gpt-5.3"}}'
+  -d '{"scenario":"I missed a customer escalation handoff.","mode":"Professional apology","tone":"professional","formality":"executive","accountabilityPosture":"calibrated ownership","audience":"customer","medium":"email","llm":{"provider":"openai","model":"gpt-5.2","reasoningEffort":"none","verbosity":"medium"}}'
 
 curl http://localhost:3000/api/v1/generations?limit=10&offset=0
 curl http://localhost:3000/api/v1/analytics/summary

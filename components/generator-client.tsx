@@ -6,9 +6,15 @@ import {
   accountabilityPostureOptions,
   audienceOptions,
   formalityOptions,
+  getDefaultOpenAiGpt5ReasoningEffort,
+  getDefaultOpenAiGpt5Verbosity,
+  getSupportedOpenAiGpt5ReasoningEfforts,
   generationModes,
+  isOpenAiGpt5Family,
   mediumOptions,
+  openAiGpt5VerbosityOptions,
   toneOptions,
+  variantKinds,
 } from '@/lib/contracts';
 import type { GenerationRequest, RewriteRequest } from '@/lib/contracts';
 
@@ -66,7 +72,9 @@ const utilityTabs: Array<{ key: UtilityTab; label: string; summary: string }> = 
 ];
 const llmDefaults = {
   provider: 'openai' as const,
-  model: 'gpt-5.3',
+  model: 'gpt-5.2',
+  reasoningEffort: getDefaultOpenAiGpt5ReasoningEffort('gpt-5.2'),
+  verbosity: getDefaultOpenAiGpt5Verbosity(),
 };
 const otherSelectValue = '__other__';
 
@@ -176,6 +184,8 @@ export function GeneratorClient() {
     utilityTabs.find((tab) => tab.key === activeUtilityTab)?.summary ?? utilityTabs[0].summary;
   const isAudienceCustom = audienceSelection === otherSelectValue;
   const isMediumCustom = mediumSelection === otherSelectValue;
+  const supportsGpt5Controls = isOpenAiGpt5Family(form.llm.provider, form.llm.model);
+  const supportedReasoningEfforts = getSupportedOpenAiGpt5ReasoningEfforts(form.llm.model);
   const obnoxiousnessLabel = describeDial(form.obnoxiousness, [
     [20, 'restrained'],
     [40, 'controlled'],
@@ -229,6 +239,37 @@ export function GeneratorClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    setForm((current) => {
+      const nextLlm = { ...current.llm };
+
+      if (!isOpenAiGpt5Family(current.llm.provider, current.llm.model)) {
+        if (nextLlm.reasoningEffort === undefined && nextLlm.verbosity === undefined) {
+          return current;
+        }
+
+        nextLlm.reasoningEffort = undefined;
+        nextLlm.verbosity = undefined;
+        return { ...current, llm: nextLlm };
+      }
+
+      const nextReasoningEffort =
+        current.llm.reasoningEffort &&
+        getSupportedOpenAiGpt5ReasoningEfforts(current.llm.model).includes(current.llm.reasoningEffort)
+          ? current.llm.reasoningEffort
+          : getDefaultOpenAiGpt5ReasoningEffort(current.llm.model);
+      const nextVerbosity = current.llm.verbosity ?? getDefaultOpenAiGpt5Verbosity();
+
+      if (nextLlm.reasoningEffort === nextReasoningEffort && nextLlm.verbosity === nextVerbosity) {
+        return current;
+      }
+
+      nextLlm.reasoningEffort = nextReasoningEffort;
+      nextLlm.verbosity = nextVerbosity;
+      return { ...current, llm: nextLlm };
+    });
+  }, [form.llm.model, form.llm.provider]);
+
   function validateLlmConfig() {
     const model = form.llm.model.trim();
     if (!model || model.length < 3) {
@@ -266,7 +307,7 @@ export function GeneratorClient() {
       setGenerationSnapshot({ request: requestPayload, response: data.data });
       setSelectedVariantKind(data.data.variants[0]?.kind ?? '');
       setShareMeta(null);
-      setMessage('Six variants generated and saved to your history.');
+      setMessage(`${variantKinds.length} variants generated and saved to your history.`);
       await refreshData(0);
     } catch (err) {
       setError((err as Error).message);
@@ -669,6 +710,55 @@ export function GeneratorClient() {
                   />
                 </label>
               </div>
+
+              {supportsGpt5Controls ? (
+                <div className="control-grid control-grid--2">
+                  <label className="field">
+                    <span className="field__label">Reasoning effort</span>
+                    <span className="field__hint">OpenAI GPT-5 Responses control from the official docs.</span>
+                    <select
+                      value={form.llm.reasoningEffort ?? getDefaultOpenAiGpt5ReasoningEffort(form.llm.model)}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          llm: {
+                            ...form.llm,
+                            reasoningEffort: e.target.value as NonNullable<GenerationRequest['llm']['reasoningEffort']>,
+                          },
+                        })
+                      }
+                    >
+                      {supportedReasoningEfforts.map((effort) => (
+                        <option key={effort} value={effort}>
+                          {effort}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span className="field__label">Verbosity</span>
+                    <span className="field__hint">OpenAI GPT-5 Responses text verbosity.</span>
+                    <select
+                      value={form.llm.verbosity ?? getDefaultOpenAiGpt5Verbosity()}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          llm: {
+                            ...form.llm,
+                            verbosity: e.target.value as NonNullable<GenerationRequest['llm']['verbosity']>,
+                          },
+                        })
+                      }
+                    >
+                      {openAiGpt5VerbosityOptions.map((verbosity) => (
+                        <option key={verbosity} value={verbosity}>
+                          {verbosity}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              ) : null}
             </div>
           </details>
 
@@ -713,7 +803,7 @@ export function GeneratorClient() {
               <p className="eyebrow">Output deck</p>
               <h2>Review one polished variant at a time</h2>
               <p className="section-copy">
-                Compare variants through a selected-reader view instead of scanning six equally loud cards.
+                Compare variants through a selected-reader view instead of scanning a wall of equally loud cards.
               </p>
             </div>
             <div className="results-panel__meta">

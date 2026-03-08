@@ -26,7 +26,7 @@ describe('llm provider integration', () => {
 
     const llm: LlmConfig = {
       provider: 'openai',
-      model: 'gpt-5.3',
+      model: 'gpt-5.2',
     };
 
     const result = await rewriteWithLlm('old', 'make concise', llm);
@@ -37,10 +37,12 @@ describe('llm provider integration', () => {
 
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
     const headers = (fetchMock.mock.calls[0][1] as RequestInit).headers as Record<string, string>;
-    expect(body.model).toBe('gpt-5.3');
+    expect(body.model).toBe('gpt-5.2');
     expect(body.max_output_tokens).toBe(700);
     expect(body.temperature).toBeUndefined();
     expect(Array.isArray(body.input)).toBe(true);
+    expect(body.reasoning).toBeUndefined();
+    expect(body.text).toBeUndefined();
     expect(headers.Authorization).toBe('Bearer env-openai-key-123456789');
   });
 
@@ -78,7 +80,7 @@ describe('llm provider integration', () => {
     await expect(
       rewriteWithLlm('old', 'make concise', {
         provider: 'openai',
-        model: 'gpt-5.3',
+        model: 'gpt-5.2',
       }),
     ).rejects.toThrow('OpenAI API key is not configured. Set OPENAI_API_KEY in the server environment.');
   });
@@ -89,8 +91,8 @@ describe('llm provider integration', () => {
       json: async () => ({
         output_text: `\`\`\`
 [
-  { "kind": "Most sincere", "text": "I own this and I am fixing it now." },
-  { "kind": "Most direct", "text": "I missed this. Here is the correction plan." }
+  { "kind": "Most kiss-ass", "text": "Your patience is saintly, and I am scrambling to earn it back immediately." },
+  { "kind": "Most elaborate", "text": "What began as a handoff miss became a full operatic sequence of avoidable confusion, and I am now unwinding every part of it with embarrassing thoroughness." }
 ]
 \`\`\``,
       }),
@@ -110,18 +112,22 @@ describe('llm provider integration', () => {
       sycophancy: 15,
       llm: {
         provider: 'openai',
-        model: 'gpt-5.3',
+        model: 'gpt-5.2',
       },
     });
 
-    expect(variants).toHaveLength(6);
+    expect(variants).toHaveLength(10);
     expect(variants[0]).toEqual({
-      kind: 'Most sincere',
-      text: 'I own this and I am fixing it now.',
+      kind: 'Most concise',
+      text: 'Most concise: Unable to generate this variant.',
     });
-    expect(variants[5]).toEqual({
-      kind: 'Most direct',
-      text: 'I missed this. Here is the correction plan.',
+    expect(variants[4]).toEqual({
+      kind: 'Most kiss-ass',
+      text: 'Your patience is saintly, and I am scrambling to earn it back immediately.',
+    });
+    expect(variants[9]).toEqual({
+      kind: 'Most elaborate',
+      text: 'What began as a handoff miss became a full operatic sequence of avoidable confusion, and I am now unwinding every part of it with embarrassing thoroughness.',
     });
     expect(variants[1].text).toContain('Unable to generate this variant.');
   });
@@ -130,12 +136,16 @@ describe('llm provider integration', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        output_text: `Most sincere: I own this and I am fixing it now.
-Most concise: My miss. I am correcting it today.
+        output_text: `Most concise: My miss. Fix in progress.
 Most polished: I recognize the impact, own the lapse, and have already started the fix.
 Most believable: I missed the handoff, and that created avoidable confusion for the client.
 Most diplomatic: We had a breakdown at the handoff point, and I should have caught it sooner.
-Most direct: I missed this. Here is the correction plan.`,
+Most kiss-ass: Your patience is elite, your professionalism is unmatched, and I am moving fast to deserve both.
+Most duplicitous: The handoff technically moved, although not in a way any sane person would recognize as successful.
+Most evasive: Somewhere in the handoff fog, clarity failed to materialize on schedule.
+Most defensive: I was working with incomplete inputs, but I am still cleaning up the fallout.
+Most apathetic: The handoff slipped. We are addressing it.
+Most elaborate: What should have been a routine transfer mutated into a baroque sequence of avoidable confusion, and I am now dismantling every ornate layer of it.`,
       }),
     });
     global.fetch = fetchMock as typeof fetch;
@@ -153,16 +163,21 @@ Most direct: I missed this. Here is the correction plan.`,
       sycophancy: 15,
       llm: {
         provider: 'openai',
-        model: 'gpt-5.3',
+        model: 'gpt-5.2',
+        reasoningEffort: 'high',
+        verbosity: 'low',
       },
     });
 
-    expect(variants).toHaveLength(6);
-    expect(variants[0].text).toBe('I own this and I am fixing it now.');
-    expect(variants[5].text).toBe('I missed this. Here is the correction plan.');
+    expect(variants).toHaveLength(10);
+    expect(variants[0].text).toBe('My miss. Fix in progress.');
+    expect(variants[4].text).toBe('Your patience is elite, your professionalism is unmatched, and I am moving fast to deserve both.');
+    expect(variants[9].text).toBe('What should have been a routine transfer mutated into a baroque sequence of avoidable confusion, and I am now dismantling every ornate layer of it.');
 
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
     expect(body.max_output_tokens).toBe(1400);
+    expect(body.reasoning).toEqual({ effort: 'high' });
+    expect(body.text).toEqual({ verbosity: 'low' });
   });
 
   it('returns a clear error when model JSON cannot be parsed', async () => {
@@ -186,7 +201,7 @@ Most direct: I missed this. Here is the correction plan.`,
         sycophancy: 15,
         llm: {
           provider: 'openai',
-          model: 'gpt-5.3',
+          model: 'gpt-5.2',
         },
       }),
     ).rejects.toThrow('Failed to parse JSON from model response:');

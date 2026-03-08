@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { BrandLogo } from '@/components/brand-logo';
 import { SiteShell } from '@/components/site-shell';
 
 export default function HomePage() {
@@ -59,7 +60,7 @@ export default function HomePage() {
       <div className="panel-grid panel-grid--feature">
         <section className="card feature-card">
           <span className="feature-card__mark" aria-hidden="true">
-            <Image src="/brand/site-mark.svg" alt="" width={22} height={22} />
+            <BrandLogo variant="stacked" decorative />
           </span>
           <p className="eyebrow">Studio</p>
           <h2>Incident response language engine</h2>
@@ -70,7 +71,7 @@ export default function HomePage() {
         </section>
         <section className="card feature-card">
           <span className="feature-card__mark" aria-hidden="true">
-            <Image src="/brand/site-mark.svg" alt="" width={22} height={22} />
+            <BrandLogo variant="stacked" decorative />
           </span>
           <p className="eyebrow">Platform</p>
           <h2>Contracts, docs, and SDK surfaces</h2>
@@ -86,7 +87,7 @@ export default function HomePage() {
         </section>
         <section className="card feature-card">
           <span className="feature-card__mark" aria-hidden="true">
-            <Image src="/brand/site-mark.svg" alt="" width={22} height={22} />
+            <BrandLogo variant="stacked" decorative />
           </span>
           <p className="eyebrow">Governance</p>
           <h2>Operational oversight without visual noise</h2>

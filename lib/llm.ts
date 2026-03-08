@@ -1,4 +1,8 @@
-import { variantKinds } from './contracts';
+import {
+  getSupportedOpenAiGpt5ReasoningEfforts,
+  isOpenAiGpt5Family,
+  variantKinds,
+} from './contracts';
 import type { GenerationRequest, LlmConfig, VariantKind } from './contracts';
 
 type VariantOutput = { kind: VariantKind; text: string };
@@ -210,6 +214,22 @@ async function fetchJsonWithTimeout(
 
 async function invokeOpenAi(llm: ResolvedLlmConfig, messages: OpenAiMessage[], maxOutputTokens: number) {
   if (isGpt5Model(llm.model)) {
+    const requestBody: JsonRecord = {
+      model: llm.model,
+      max_output_tokens: maxOutputTokens,
+      input: messages,
+    };
+
+    if (isOpenAiGpt5Family('openai', llm.model)) {
+      const supportedReasoningEfforts = getSupportedOpenAiGpt5ReasoningEfforts(llm.model);
+      if (llm.reasoningEffort && supportedReasoningEfforts.includes(llm.reasoningEffort)) {
+        requestBody.reasoning = { effort: llm.reasoningEffort };
+      }
+      if (llm.verbosity) {
+        requestBody.text = { verbosity: llm.verbosity };
+      }
+    }
+
     const { response, data } = await fetchJsonWithTimeout(
       'https://api.openai.com/v1/responses',
       {
@@ -218,11 +238,7 @@ async function invokeOpenAi(llm: ResolvedLlmConfig, messages: OpenAiMessage[], m
           'content-type': 'application/json',
           Authorization: `Bearer ${llm.apiKey}`,
         },
-        body: JSON.stringify({
-          model: llm.model,
-          max_output_tokens: maxOutputTokens,
-          input: messages,
-        }),
+        body: JSON.stringify(requestBody),
       },
       'openai',
     );
@@ -343,14 +359,14 @@ export async function generateVariantsWithLlm(request: GenerationRequest) {
     [80, 'velvety and eager to please'],
     [100, 'groveling, syrupy, and shamelessly flattering'],
   ]);
-  const prompt = `Create six response variants for the scenario below.
+  const prompt = `Create ${variantKinds.length} response variants for the scenario below.
 Return plain text only. Do not use JSON, markdown, code fences, bullets, or commentary before/after the variants.
 Use these exact labels in this exact order, one block per label:
 ${variantKinds.map((kind) => `${kind}: <text>`).join('\n')}
 Steering contract (hard requirements):
 - Treat every selector as a hard constraint, not a soft suggestion.
 - Keep each variant to 2-5 sentences as a single paragraph after its label.
-- Make the six variants materially different by their requested kind, but keep them in the same scenario.
+- Make all ${variantKinds.length} variants materially different by their requested kind, but keep them in the same scenario.
 - ${describeFormalityDirective(request.formality)}
 - Obnoxiousness rule: ${describeObnoxiousnessDirective(request.obnoxiousness)}
 - Sycophancy rule: ${describeSycophancyDirective(request.sycophancy)}

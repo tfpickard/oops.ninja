@@ -1,6 +1,6 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { BrandLogo } from '@/components/brand-logo';
 
 type ShellRoute = 'home' | 'dashboard' | 'docs' | 'sdk' | 'admin';
 
@@ -43,11 +43,10 @@ export function SiteShell({
 
       <header className="shell__header">
         <Link className="brand-lockup" href="/">
-          <span className="site-mark" aria-hidden="true">
-            <Image src="/brand/site-mark.svg" alt="" width={38} height={38} />
+          <span className="site-mark">
+            <BrandLogo variant="horizontal" priority />
           </span>
           <span className="brand-lockup__copy">
-            <strong>oops.ninja</strong>
             <small>Operational language for high-variance human events.</small>
           </span>
         </Link>
