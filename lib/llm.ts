@@ -96,6 +96,51 @@ function describeDial(value: number, levels: Array<[number, string]>) {
   return levels.find(([max]) => value <= max)?.[1] ?? levels[levels.length - 1][1];
 }
 
+function describeObnoxiousnessDirective(value: number) {
+  if (value <= 15) {
+    return 'Stay understated. No dramatics, no swagger, no theatrical punctuation.';
+  }
+  if (value <= 35) {
+    return 'Keep it composed with subtle personality. Avoid grandstanding.';
+  }
+  if (value <= 55) {
+    return 'Use visible personality and color. Light rhetorical flair is welcome.';
+  }
+  if (value <= 75) {
+    return 'Be boldly performative: punchy phrasing, vivid verbs, confident swagger.';
+  }
+  if (value <= 90) {
+    return 'Go loud and theatrical with dramatic phrasing and overt flair while staying coherent.';
+  }
+  return 'Go maximum obnoxious: include one short ALL-CAPS fragment, at least one exclamation mark, and one playful overblown metaphor.';
+}
+
+function describeSycophancyDirective(value: number) {
+  if (value <= 15) {
+    return 'Keep flattery near zero. Be respectful but direct.';
+  }
+  if (value <= 35) {
+    return 'Use basic politeness only. Avoid gushing praise.';
+  }
+  if (value <= 55) {
+    return 'Sound warm and accommodating with moderate praise.';
+  }
+  if (value <= 75) {
+    return 'Be clearly deferential with frequent appreciation language.';
+  }
+  if (value <= 90) {
+    return 'Use lavish praise and eager-to-please language throughout.';
+  }
+  return 'Go fully syrupy and shamelessly flattering without becoming incoherent.';
+}
+
+function describeFormalityDirective(formality: string) {
+  if (['boardroom', 'legalistic', 'ceremonial', 'bureaucratic', 'ultra-formal'].includes(formality)) {
+    return 'Maintain the requested formal register, but keep wording concrete and readable.';
+  }
+  return 'Favor modern conversational cadence and avoid sterile corporate boilerplate.';
+}
+
 async function fetchJsonWithTimeout(
   url: string,
   init: RequestInit,
@@ -252,10 +297,17 @@ export async function generateVariantsWithLlm(request: GenerationRequest) {
     [80, 'velvety and eager to please'],
     [100, 'groveling, syrupy, and shamelessly flattering'],
   ]);
-  const prompt = `Create six apology variants for the scenario below.
+  const prompt = `Create six response variants for the scenario below.
 Return JSON array only with objects containing {"kind": string, "text": string}.
 Use these exact kinds in order: ${variantKinds.join(', ')}.
-Honor the style dials materially. Low values should stay restrained. High values should become intentionally over-the-top while still sounding coherent.
+Steering contract (hard requirements):
+- Treat every selector as a hard constraint, not a soft suggestion.
+- Keep each variant to 2-5 sentences in plain text (no markdown).
+- Make the six variants materially different by their requested kind, but keep them in the same scenario.
+- ${describeFormalityDirective(request.formality)}
+- Obnoxiousness rule: ${describeObnoxiousnessDirective(request.obnoxiousness)}
+- Sycophancy rule: ${describeSycophancyDirective(request.sycophancy)}
+- If both dials are above 85, produce intentionally absurd corporate-theater language while keeping meaning clear.
 
 Scenario: ${request.scenario}
 Mode: ${request.mode}
@@ -270,7 +322,8 @@ Syrupy kiss-ass dial: ${request.sycophancy}/100 (${sycophancyProfile})`;
   const output = await invokeModel(request.llm, [
     {
       role: 'system',
-      content: 'You are a communications strategist. Keep each variant to 2-4 sentences. Avoid markdown.',
+      content:
+        'You are a highly steerable communications copywriter. Follow user controls exactly, avoid generic safe prose, and return JSON only.',
     },
     { role: 'user', content: prompt },
   ]);

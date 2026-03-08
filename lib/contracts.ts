@@ -43,6 +43,85 @@ export const generationModes = [
   'Extremely concise “my bad” in enterprise format',
 ] as const;
 
+export const toneOptions = [
+  'empathetic',
+  'neutral',
+  'professional',
+  'authoritative',
+  'playful',
+  'candid',
+  'contrite',
+  'blunt',
+  'diplomatic',
+  'warm',
+  'sarcastic',
+  'theatrical',
+] as const;
+
+export const formalityOptions = [
+  'casual',
+  'plainspoken',
+  'conversational',
+  'standard',
+  'polished',
+  'professional',
+  'executive',
+  'boardroom',
+  'legalistic',
+  'ceremonial',
+  'bureaucratic',
+  'ultra-formal',
+] as const;
+
+export const accountabilityPostureOptions = [
+  'full ownership',
+  'calibrated ownership',
+  'corrective ownership',
+  'empathetic ownership',
+  'contextual framing',
+  'lessons-learned framing',
+  'responsibility diffusion',
+  'shared-systems framing',
+  'timeline-first framing',
+  'narrative ambiguity',
+  'strategic vagueness',
+  'passive-voice shield',
+] as const;
+
+export const audienceOptions = [
+  'investor',
+  'customer',
+  'enterprise customer',
+  'prospective customer',
+  'direct manager',
+  'skip-level executive',
+  'board of directors',
+  'internal team',
+  'cross-functional partner',
+  'partner or vendor',
+  'media or reporters',
+  'public community',
+  'regulator',
+  'friends and family',
+] as const;
+
+export const mediumOptions = [
+  'email',
+  'slack message',
+  'microsoft teams message',
+  'text message',
+  'phone call script',
+  'meeting follow-up note',
+  'one-on-one talking points',
+  'all-hands script',
+  'incident postmortem',
+  'status page update',
+  'support ticket response',
+  'board memo',
+  'press statement',
+  'social media post',
+] as const;
+
 export const variantKinds = [
   'Most sincere',
   'Most concise',
@@ -65,15 +144,9 @@ const llmDefaults = {
 export const generationRequestSchema = z.object({
   scenario: z.string().min(10),
   mode: z.enum(generationModes),
-  tone: z.enum(['empathetic', 'neutral', 'professional', 'authoritative']),
-  formality: z.enum(['casual', 'standard', 'executive']).default('standard'),
-  accountabilityPosture: z.enum([
-    'full ownership',
-    'calibrated ownership',
-    'contextual framing',
-    'responsibility diffusion',
-    'narrative ambiguity',
-  ]).default('calibrated ownership'),
+  tone: z.enum(toneOptions),
+  formality: z.enum(formalityOptions).default('standard'),
+  accountabilityPosture: z.enum(accountabilityPostureOptions).default('calibrated ownership'),
   audience: z.string().default('coworker'),
   medium: z.string().default('email'),
   obnoxiousness: z.number().int().min(0).max(100).default(24),

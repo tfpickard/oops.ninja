@@ -2,7 +2,14 @@
 
 import Image from 'next/image';
 import { useEffect, useMemo, useState } from 'react';
-import { generationModes } from '@/lib/contracts';
+import {
+  accountabilityPostureOptions,
+  audienceOptions,
+  formalityOptions,
+  generationModes,
+  mediumOptions,
+  toneOptions,
+} from '@/lib/contracts';
 import type { GenerationRequest, RewriteRequest } from '@/lib/contracts';
 
 type ApiKeyEntry = { id: string; prefix: string; createdAt: string };
@@ -51,15 +58,6 @@ type GenerationSnapshot = {
   response: GenerationOutput;
 };
 
-const toneOptions: GenerationRequest['tone'][] = ['empathetic', 'neutral', 'professional', 'authoritative'];
-const formalityOptions: GenerationRequest['formality'][] = ['casual', 'standard', 'executive'];
-const accountabilityOptions: GenerationRequest['accountabilityPosture'][] = [
-  'full ownership',
-  'calibrated ownership',
-  'contextual framing',
-  'responsibility diffusion',
-  'narrative ambiguity',
-];
 const utilityTabs: Array<{ key: UtilityTab; label: string; summary: string }> = [
   { key: 'rewrite', label: 'Rewrite', summary: 'Refine existing copy without leaving the workflow.' },
   { key: 'history', label: 'History', summary: 'Review recent generations and activity.' },
@@ -70,6 +68,7 @@ const llmDefaults = {
   provider: 'openai' as const,
   model: 'gpt-5.3',
 };
+const otherSelectValue = '__other__';
 
 const defaults: GenerationRequest = {
   scenario: 'I missed an investor update call and need to restore confidence with a clear action plan.',
@@ -105,6 +104,10 @@ function describeDial(value: number, levels: Array<[number, string]>) {
   return levels.find(([max]) => value <= max)?.[1] ?? levels[levels.length - 1][1];
 }
 
+function resolveSelectValue(value: string, options: readonly string[]) {
+  return options.includes(value) ? value : otherSelectValue;
+}
+
 function clampPercentage(value: number, total: number) {
   if (total <= 0) return 0;
   return Math.max(0, Math.min(100, (value / total) * 100));
@@ -134,6 +137,12 @@ function formatProvider(provider: GenerationRequest['llm']['provider']) {
 
 export function GeneratorClient() {
   const [form, setForm] = useState<GenerationRequest>(defaults);
+  const [audienceSelection, setAudienceSelection] = useState<string>(
+    resolveSelectValue(defaults.audience, audienceOptions),
+  );
+  const [mediumSelection, setMediumSelection] = useState<string>(
+    resolveSelectValue(defaults.medium, mediumOptions),
+  );
   const [rewrite, setRewrite] = useState<RewriteRequest>(rewriteDefaults);
   const [generated, setGenerated] = useState<GenerationOutput | null>(null);
   const [generationSnapshot, setGenerationSnapshot] = useState<GenerationSnapshot | null>(null);
@@ -165,6 +174,8 @@ export function GeneratorClient() {
   }, [generated, selectedVariantKind]);
   const selectedUtilitySummary =
     utilityTabs.find((tab) => tab.key === activeUtilityTab)?.summary ?? utilityTabs[0].summary;
+  const isAudienceCustom = audienceSelection === otherSelectValue;
+  const isMediumCustom = mediumSelection === otherSelectValue;
   const obnoxiousnessLabel = describeDial(form.obnoxiousness, [
     [20, 'restrained'],
     [40, 'controlled'],
@@ -400,7 +411,7 @@ export function GeneratorClient() {
       </section>
 
       <div className="workflow-grid">
-        <section className="card studio-panel studio-panel--refined">
+        <section className={`card studio-panel studio-panel--refined${isWorking ? ' studio-panel--working' : ''}`}>
           <div className="section-heading section-heading--split-column">
             <div>
               <p className="eyebrow">Compose</p>
@@ -462,7 +473,7 @@ export function GeneratorClient() {
                     })
                   }
                 >
-                  {accountabilityOptions.map((option) => (
+                  {accountabilityPostureOptions.map((option) => (
                     <option key={option} value={option}>
                       {option}
                     </option>
@@ -525,17 +536,55 @@ export function GeneratorClient() {
             <div className="control-grid control-grid--2">
               <label className="field">
                 <span className="field__label">Audience</span>
-                <input
-                  value={form.audience}
-                  onChange={(e) => setForm({ ...form, audience: e.target.value })}
-                />
+                <span className="field__hint">Choose a target reader or use custom.</span>
+                <select
+                  value={audienceSelection}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setAudienceSelection(value);
+                    setForm({ ...form, audience: value === otherSelectValue ? '' : value });
+                  }}
+                >
+                  {audienceOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                  <option value={otherSelectValue}>Other (custom)</option>
+                </select>
+                {isAudienceCustom ? (
+                  <input
+                    placeholder="Enter a custom audience"
+                    value={form.audience}
+                    onChange={(e) => setForm({ ...form, audience: e.target.value })}
+                  />
+                ) : null}
               </label>
               <label className="field">
                 <span className="field__label">Medium</span>
-                <input
-                  value={form.medium}
-                  onChange={(e) => setForm({ ...form, medium: e.target.value })}
-                />
+                <span className="field__hint">Pick the delivery channel or type your own.</span>
+                <select
+                  value={mediumSelection}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setMediumSelection(value);
+                    setForm({ ...form, medium: value === otherSelectValue ? '' : value });
+                  }}
+                >
+                  {mediumOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                  <option value={otherSelectValue}>Other (custom)</option>
+                </select>
+                {isMediumCustom ? (
+                  <input
+                    placeholder="Enter a custom medium"
+                    value={form.medium}
+                    onChange={(e) => setForm({ ...form, medium: e.target.value })}
+                  />
+                ) : null}
               </label>
             </div>
           </section>
@@ -624,26 +673,41 @@ export function GeneratorClient() {
           </details>
 
           <div className="action-row">
-            <button type="button" onClick={generate} disabled={isWorking}>
-              {isWorking ? 'Generating...' : 'Generate variants'}
+            <button type="button" className={isWorking ? 'button-working' : ''} onClick={generate} disabled={isWorking}>
+              {isWorking ? 'Generating deck...' : 'Generate variants'}
             </button>
             <button
               type="button"
               className="button-secondary"
-              onClick={() => setForm(defaults)}
+              onClick={() => {
+                setForm(defaults);
+                setAudienceSelection(resolveSelectValue(defaults.audience, audienceOptions));
+                setMediumSelection(resolveSelectValue(defaults.medium, mediumOptions));
+              }}
               disabled={isWorking}
             >
               Reset settings
             </button>
           </div>
 
-          <div className={`status-banner${error ? ' status-banner--error' : ''}`}>
+          <div className={`status-banner${error ? ' status-banner--error' : ''}${isWorking ? ' status-banner--working' : ''}`}>
             <p className="eyebrow">{error ? 'Issue' : isWorking ? 'Working' : 'Studio status'}</p>
             <strong>{error ? error : message}</strong>
+            {isWorking && !error ? (
+              <div className="corporate-loader" role="status" aria-live="polite" aria-label="Generation in progress">
+                <span className="corporate-loader__dot" />
+                <span className="corporate-loader__label">Aligning stakeholder narratives...</span>
+                <span className="corporate-loader__bars" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+              </div>
+            ) : null}
           </div>
         </section>
 
-        <section className="card results-panel results-panel--refined">
+        <section className={`card results-panel results-panel--refined${isWorking ? ' results-panel--working' : ''}`}>
           <div className="section-heading section-heading--split-column">
             <div>
               <p className="eyebrow">Output deck</p>
@@ -799,7 +863,7 @@ export function GeneratorClient() {
                     onChange={(e) => setRewrite({ ...rewrite, transform: e.target.value })}
                   />
                 </label>
-                <button type="button" onClick={runRewrite} disabled={isWorking}>
+                <button type="button" className={isWorking ? 'button-working' : ''} onClick={runRewrite} disabled={isWorking}>
                   {isWorking ? 'Rewriting...' : 'Rewrite text'}
                 </button>
               </div>

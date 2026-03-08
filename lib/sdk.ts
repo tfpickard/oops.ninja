@@ -4,8 +4,8 @@ export const typescriptSdkSnippet = `export class OopsNinjaClient {
   async generate(payload: {
     scenario: string;
     mode: string;
-    tone: 'empathetic' | 'neutral' | 'professional' | 'authoritative';
-    formality?: 'casual' | 'standard' | 'executive';
+    tone: string;
+    formality?: string;
     accountabilityPosture?: string;
     audience?: string;
     medium?: string;
