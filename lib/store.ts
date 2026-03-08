@@ -143,12 +143,16 @@ export function getAdminMetrics() {
 
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
   const moderationEvents24h = moderationEvents.filter((event) => event.createdAt >= dayAgo).length;
+  const now = Date.now();
+  const activeShares = [...sharedGenerations.values()].filter(
+    (share) => new Date(share.expiresAt).getTime() > now,
+  ).length;
 
   return {
     totalUsers,
     totalGenerations: generations.length,
     totalApiKeys: [...apiKeys.values()].flat().length,
-    activeShares: sharedGenerations.size,
+    activeShares,
     moderationEvents24h,
   };
 }
