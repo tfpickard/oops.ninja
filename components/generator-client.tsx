@@ -1,10 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { GenerationRequest, RewriteRequest } from '@/lib/contracts';
 
+type ApiKeyEntry = { id: string; prefix: string; createdAt: string };
+type GenerationEntry = { id: string; scenario: string; mode: string; createdAt: string };
+type OrgEntry = { id: string; name: string; slug: string; members: string[] };
+
+type GenerationPage = {
+  items: GenerationEntry[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+};
+
 const defaults: GenerationRequest = {
-  scenario: 'I missed an investor update call.',
+  scenario: 'I missed an investor update call and need to restore confidence with a clear action plan.',
   mode: 'Professional apology',
   tone: 'professional',
   formality: 'executive',
@@ -15,50 +27,234 @@ const defaults: GenerationRequest = {
 
 export function GeneratorClient() {
   const [form, setForm] = useState<GenerationRequest>(defaults);
-  const [result, setResult] = useState<string>('');
+  const [result, setResult] = useState<string>('No generation executed yet.');
   const [rewrite, setRewrite] = useState<RewriteRequest>({
     text: 'We had a miss in coordination and I own the breakdown.',
     transform: 'Make this more concise',
   });
+  const [historyPage, setHistoryPage] = useState<GenerationPage>({ items: [], total: 0, limit: 5, offset: 0, hasMore: false });
+  const [keys, setKeys] = useState<ApiKeyEntry[]>([]);
+  const [orgs, setOrgs] = useState<OrgEntry[]>([]);
+  const [usage, setUsage] = useState<number>(0);
+  const [analytics, setAnalytics] = useState<string>('No analytics sampled yet.');
+  const [billing, setBilling] = useState<string>('Billing snapshot not queried yet.');
+  const [shareUrl, setShareUrl] = useState<string>('');
+  const [message, setMessage] = useState<string>('Ready.');
+  const [error, setError] = useState<string>('');
+  const [isWorking, setIsWorking] = useState(false);
+
+  const canShare = useMemo(() => historyPage.items.length > 0, [historyPage.items.length]);
+
+  async function fetchJson(url: string, init?: RequestInit) {
+    const res = await fetch(url, init);
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data?.error?.message ?? 'Request failed');
+    }
+    return data;
+  }
+
+  async function refreshData(offset = 0) {
+    const [historyData, keysData, usageData, orgData, analyticsData] = await Promise.all([
+      fetchJson(`/api/v1/generations?limit=${historyPage.limit}&offset=${offset}`),
+      fetchJson('/api/v1/api-keys'),
+      fetchJson('/api/v1/usage'),
+      fetchJson('/api/v1/organizations'),
+      fetchJson('/api/v1/analytics/summary'),
+    ]);
+
+    setHistoryPage(historyData.data);
+    setKeys(keysData.data.items ?? []);
+    setUsage(usageData.data.totalGenerations ?? 0);
+    setOrgs(orgData.data.items ?? []);
+    setAnalytics(JSON.stringify(analyticsData.data.summary ?? {}, null, 2));
+  }
+
+  useEffect(() => {
+    refreshData().catch((err: Error) => setError(err.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function generate() {
-    const res = await fetch('/api/v1/generate', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(form),
-    });
-    const data = await res.json();
-    setResult(JSON.stringify(data, null, 2));
+    setIsWorking(true);
+    setError('');
+    try {
+      const data = await fetchJson('/api/v1/generate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      setResult(JSON.stringify(data, null, 2));
+      setMessage('Generation variants produced successfully.');
+      await refreshData(0);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setIsWorking(false);
+    }
   }
 
   async function runRewrite() {
-    const res = await fetch('/api/v1/rewrite', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(rewrite),
-    });
-    const data = await res.json();
-    setResult(JSON.stringify(data, null, 2));
+    setIsWorking(true);
+    setError('');
+    try {
+      const data = await fetchJson('/api/v1/rewrite', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(rewrite),
+      });
+      setResult(JSON.stringify(data, null, 2));
+      setMessage('Rewrite transformation completed.');
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setIsWorking(false);
+    }
+  }
+
+  async function createKey() {
+    setError('');
+    try {
+      await fetchJson('/api/v1/api-keys', { method: 'POST' });
+      await refreshData(historyPage.offset);
+      setMessage('API key issued.');
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function revokeKey(id: string) {
+    setError('');
+    try {
+      await fetchJson(`/api/v1/api-keys/${id}`, { method: 'DELETE' });
+      await refreshData(historyPage.offset);
+      setMessage('API key revoked.');
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function createOrg() {
+    setError('');
+    try {
+      await fetchJson('/api/v1/organizations', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: `Narrative Ops ${orgs.length + 1}` }),
+      });
+      await refreshData(historyPage.offset);
+      setMessage('Organization created.');
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function loadBilling() {
+    setError('');
+    try {
+      const data = await fetchJson('/api/v1/billing/portal');
+      setBilling(JSON.stringify(data.data, null, 2));
+      setMessage('Billing profile loaded.');
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function shareLatest() {
+    if (!historyPage.items[0]) return;
+    setError('');
+    try {
+      const data = await fetchJson(`/api/v1/generations/${historyPage.items[0].id}/share`, { method: 'POST' });
+      setShareUrl(data.data.share?.url ?? 'Unable to create share link.');
+      setMessage('Share link created.');
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function loadHistoryPage(nextOffset: number) {
+    setError('');
+    try {
+      await refreshData(nextOffset);
+    } catch (err) {
+      setError((err as Error).message);
+    }
   }
 
   return (
     <div className="grid grid-2">
       <section className="card grid">
-        <h2>Generate Response Variants</h2>
+        <h2>Generation Control Surface</h2>
         <label>Scenario<textarea value={form.scenario} onChange={(e) => setForm({ ...form, scenario: e.target.value })} /></label>
-        <label>Mode<input value={form.mode} onChange={(e) => setForm({ ...form, mode: e.target.value })} /></label>
-        <label>Tone<select value={form.tone} onChange={(e) => setForm({ ...form, tone: e.target.value as GenerationRequest['tone'] })}><option>empathetic</option><option>neutral</option><option>professional</option><option>authoritative</option></select></label>
-        <button onClick={generate}>Generate</button>
+        <div className="grid grid-2">
+          <label>Mode<input value={form.mode} onChange={(e) => setForm({ ...form, mode: e.target.value })} /></label>
+          <label>Tone<select value={form.tone} onChange={(e) => setForm({ ...form, tone: e.target.value as GenerationRequest['tone'] })}><option>empathetic</option><option>neutral</option><option>professional</option><option>authoritative</option></select></label>
+        </div>
+        <button onClick={generate} disabled={isWorking}>{isWorking ? 'Processing…' : 'Generate Variants'}</button>
       </section>
+
       <section className="card grid">
         <h2>Rewrite Utility</h2>
         <label>Input<textarea value={rewrite.text} onChange={(e) => setRewrite({ ...rewrite, text: e.target.value })} /></label>
         <label>Transform<input value={rewrite.transform} onChange={(e) => setRewrite({ ...rewrite, transform: e.target.value })} /></label>
-        <button onClick={runRewrite}>Rewrite</button>
+        <button onClick={runRewrite} disabled={isWorking}>{isWorking ? 'Processing…' : 'Rewrite Text'}</button>
       </section>
+
+      <section className="card grid">
+        <h2>Phase 1 Readiness</h2>
+        <small>Total generations: {usage}</small>
+        <button onClick={createKey}>Issue API key</button>
+        <ul>
+          {keys.length === 0 && <li><small>No API keys provisioned.</small></li>}
+          {keys.map((key) => (
+            <li key={key.id}>
+              <code>{key.prefix}••••</code> <small>{new Date(key.createdAt).toLocaleString()}</small>
+              <button className="inline-button" onClick={() => revokeKey(key.id)}>Revoke</button>
+            </li>
+          ))}
+        </ul>
+        <h3>Saved history</h3>
+        <ul>
+          {historyPage.items.length === 0 && <li><small>No saved generations yet.</small></li>}
+          {historyPage.items.map((item) => <li key={item.id}>{item.mode}: {item.scenario.slice(0, 72)}</li>)}
+        </ul>
+        <div className="grid grid-2">
+          <button onClick={() => loadHistoryPage(Math.max(0, historyPage.offset - historyPage.limit))} disabled={historyPage.offset === 0}>Previous</button>
+          <button onClick={() => loadHistoryPage(historyPage.offset + historyPage.limit)} disabled={!historyPage.hasMore}>Next</button>
+        </div>
+      </section>
+
+      <section className="card grid">
+        <h2>Phase 2 Workspace</h2>
+        <button onClick={createOrg}>Create organization</button>
+        <ul>
+          {orgs.length === 0 && <li><small>No organizations configured.</small></li>}
+          {orgs.map((org) => <li key={org.id}><strong>{org.name}</strong> <small>/{org.slug} · {org.members.length} members</small></li>)}
+        </ul>
+        <button onClick={loadBilling}>Load billing profile</button>
+        <button onClick={shareLatest} disabled={!canShare}>Share latest generation</button>
+        {shareUrl && <small>Share endpoint: {shareUrl}</small>}
+      </section>
+
       <section className="card" style={{ gridColumn: '1 / -1' }}>
-        <h2>Result</h2>
-        <pre>{result || 'No generation executed yet.'}</pre>
+        <h2>Status</h2>
+        <small>{message}</small>
+        {error && <p role="alert" className="alert">{error}</p>}
+      </section>
+
+      <section className="card" style={{ gridColumn: '1 / -1' }}>
+        <h2>Analytics Snapshot</h2>
+        <pre>{analytics}</pre>
+      </section>
+
+      <section className="card" style={{ gridColumn: '1 / -1' }}>
+        <h2>Billing Snapshot</h2>
+        <pre>{billing}</pre>
+      </section>
+
+      <section className="card" style={{ gridColumn: '1 / -1' }}>
+        <h2>API Result</h2>
+        <pre>{result}</pre>
       </section>
     </div>
   );
