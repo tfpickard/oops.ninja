@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { generationModes } from '@/lib/contracts';
 import type { GenerationRequest, RewriteRequest } from '@/lib/contracts';
 
 type ApiKeyEntry = { id: string; prefix: string; createdAt: string };
@@ -187,7 +188,7 @@ export function GeneratorClient() {
         <h2>Generation Control Surface</h2>
         <label>Scenario<textarea value={form.scenario} onChange={(e) => setForm({ ...form, scenario: e.target.value })} /></label>
         <div className="grid grid-2">
-          <label>Mode<input value={form.mode} onChange={(e) => setForm({ ...form, mode: e.target.value })} /></label>
+          <label>Mode<select value={form.mode} onChange={(e) => setForm({ ...form, mode: e.target.value as GenerationRequest['mode'] })}>{generationModes.map((mode) => <option key={mode} value={mode}>{mode}</option>)}</select></label>
           <label>Tone<select value={form.tone} onChange={(e) => setForm({ ...form, tone: e.target.value as GenerationRequest['tone'] })}><option>empathetic</option><option>neutral</option><option>professional</option><option>authoritative</option></select></label>
         </div>
         <button onClick={generate} disabled={isWorking}>{isWorking ? 'Processing…' : 'Generate Variants'}</button>
