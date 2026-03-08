@@ -33,10 +33,10 @@ export default function HomePage() {
           <div className="shell-preview__screen">
             <div className="shell-preview__signal" aria-hidden="true" />
             <p className="eyebrow">Product posture</p>
-            <h2>Premium utility, not dashboard clutter.</h2>
+            <h2>Only you need to know it&apos;s your fault.</h2>
             <p>
-              Quiet surfaces, clear hierarchy, and just enough motion to make the console feel alive without
-              pulling attention away from the work.
+              Publicly: hero oozing BDE. Privately: it&apos;s not lying if AI wrote it for me.{' '}
+              <em>Save the day, babes today.</em>
             </p>
           </div>
           <div className="shell-preview__stack">

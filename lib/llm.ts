@@ -20,7 +20,8 @@ const providerLabels = {
 } as const;
 
 const requestTimeoutMs = 15000;
-const maxOutputTokens = 700;
+const generationMaxOutputTokens = 1400;
+const rewriteMaxOutputTokens = 700;
 
 function resolveLlmConfig(llm: LlmConfig): ResolvedLlmConfig {
   const envVar = providerEnvVars[llm.provider];
@@ -36,17 +37,31 @@ function resolveLlmConfig(llm: LlmConfig): ResolvedLlmConfig {
   };
 }
 
-function parseJsonPayload(raw: string) {
+function stripCodeFence(raw: string) {
   const jsonFenced = raw.match(/```json\s*([\s\S]*?)```/i);
   const genericFenced = raw.match(/```\s*([\s\S]*?)```/);
-  const source = (jsonFenced?.[1] ?? genericFenced?.[1] ?? raw).trim();
+  return (jsonFenced?.[1] ?? genericFenced?.[1] ?? raw).trim();
+}
+
+function parseJsonPayload(raw: string) {
+  const source = stripCodeFence(raw);
+  const arrayStart = source.indexOf('[');
+  const arrayEnd = source.lastIndexOf(']');
+  const jsonSource = arrayStart >= 0 && arrayEnd > arrayStart ? source.slice(arrayStart, arrayEnd + 1).trim() : source;
 
   try {
-    return JSON.parse(source);
+    return JSON.parse(jsonSource);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to parse JSON from model response: ${detail}`);
   }
+}
+
+function normalizeVariantMap(byKind: Map<string, string>): VariantOutput[] {
+  return variantKinds.map((kind) => ({
+    kind,
+    text: byKind.get(kind) ?? `${kind}: Unable to generate this variant.`,
+  }));
 }
 
 function normalizeVariants(payload: unknown): VariantOutput[] {
@@ -62,10 +77,37 @@ function normalizeVariants(payload: unknown): VariantOutput[] {
     byKind.set(record.kind, record.text.trim());
   }
 
-  return variantKinds.map((kind) => ({
-    kind,
-    text: byKind.get(kind) ?? `${kind}: Unable to generate this variant.`,
-  }));
+  return normalizeVariantMap(byKind);
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function parseLabeledVariants(raw: string): VariantOutput[] | null {
+  const source = stripCodeFence(raw).replace(/\r/g, '').trim();
+  const headerPattern = new RegExp(
+    `(^|\\n)\\s*(?:#+\\s*)?(?:\\d+[.)]\\s*)?(?:[-*]\\s*)?\\*{0,2}\\[?(${variantKinds.map(escapeRegExp).join('|')})\\]?\\*{0,2}\\s*:\\s*`,
+    'g',
+  );
+  const matches = Array.from(source.matchAll(headerPattern));
+  if (!matches.length) return null;
+
+  const byKind = new Map<string, string>();
+  for (let index = 0; index < matches.length; index += 1) {
+    const match = matches[index];
+    const kind = match[2]?.trim();
+    if (!kind) continue;
+
+    const contentStart = (match.index ?? 0) + match[0].length;
+    const nextMatchIndex = matches[index + 1]?.index ?? source.length;
+    const text = source.slice(contentStart, nextMatchIndex).replace(/\s*\n+\s*/g, ' ').trim();
+    if (text) {
+      byKind.set(kind, text);
+    }
+  }
+
+  return byKind.size ? normalizeVariantMap(byKind) : null;
 }
 
 function isGpt5Model(model: string) {
@@ -166,7 +208,7 @@ async function fetchJsonWithTimeout(
   }
 }
 
-async function invokeOpenAi(llm: ResolvedLlmConfig, messages: OpenAiMessage[]) {
+async function invokeOpenAi(llm: ResolvedLlmConfig, messages: OpenAiMessage[], maxOutputTokens: number) {
   if (isGpt5Model(llm.model)) {
     const { response, data } = await fetchJsonWithTimeout(
       'https://api.openai.com/v1/responses',
@@ -218,7 +260,7 @@ async function invokeOpenAi(llm: ResolvedLlmConfig, messages: OpenAiMessage[]) {
   return ((data.choices as Array<JsonRecord> | undefined)?.[0]?.message as JsonRecord | undefined)?.content as string;
 }
 
-async function invokeAnthropic(llm: ResolvedLlmConfig, messages: OpenAiMessage[]) {
+async function invokeAnthropic(llm: ResolvedLlmConfig, messages: OpenAiMessage[], maxOutputTokens: number) {
   const userPrompt = messages.filter((entry) => entry.role === 'user').map((entry) => entry.content).join('\n\n');
   const systemPrompt = messages.filter((entry) => entry.role === 'system').map((entry) => entry.content).join('\n\n');
 
@@ -248,7 +290,7 @@ async function invokeAnthropic(llm: ResolvedLlmConfig, messages: OpenAiMessage[]
   return ((data.content as Array<JsonRecord> | undefined)?.[0]?.text as string) ?? '';
 }
 
-async function invokeOpenRouter(llm: ResolvedLlmConfig, messages: OpenAiMessage[]) {
+async function invokeOpenRouter(llm: ResolvedLlmConfig, messages: OpenAiMessage[], maxOutputTokens: number) {
   const { response, data } = await fetchJsonWithTimeout(
     'https://openrouter.ai/api/v1/chat/completions',
     {
@@ -274,12 +316,16 @@ async function invokeOpenRouter(llm: ResolvedLlmConfig, messages: OpenAiMessage[
   return ((data.choices as Array<JsonRecord> | undefined)?.[0]?.message as JsonRecord | undefined)?.content as string;
 }
 
-async function invokeModel(llm: LlmConfig, messages: OpenAiMessage[]) {
+async function invokeModel(llm: LlmConfig, messages: OpenAiMessage[], maxOutputTokens: number) {
   const resolved = resolveLlmConfig(llm);
 
-  if (resolved.provider === 'anthropic') return invokeAnthropic(resolved, messages);
-  if (resolved.provider === 'openrouter') return invokeOpenRouter(resolved, messages);
-  return invokeOpenAi(resolved, messages);
+  if (resolved.provider === 'anthropic') {
+    return invokeAnthropic(resolved, messages, maxOutputTokens);
+  }
+  if (resolved.provider === 'openrouter') {
+    return invokeOpenRouter(resolved, messages, maxOutputTokens);
+  }
+  return invokeOpenAi(resolved, messages, maxOutputTokens);
 }
 
 export async function generateVariantsWithLlm(request: GenerationRequest) {
@@ -298,11 +344,12 @@ export async function generateVariantsWithLlm(request: GenerationRequest) {
     [100, 'groveling, syrupy, and shamelessly flattering'],
   ]);
   const prompt = `Create six response variants for the scenario below.
-Return JSON array only with objects containing {"kind": string, "text": string}.
-Use these exact kinds in order: ${variantKinds.join(', ')}.
+Return plain text only. Do not use JSON, markdown, code fences, bullets, or commentary before/after the variants.
+Use these exact labels in this exact order, one block per label:
+${variantKinds.map((kind) => `${kind}: <text>`).join('\n')}
 Steering contract (hard requirements):
 - Treat every selector as a hard constraint, not a soft suggestion.
-- Keep each variant to 2-5 sentences in plain text (no markdown).
+- Keep each variant to 2-5 sentences as a single paragraph after its label.
 - Make the six variants materially different by their requested kind, but keep them in the same scenario.
 - ${describeFormalityDirective(request.formality)}
 - Obnoxiousness rule: ${describeObnoxiousnessDirective(request.obnoxiousness)}
@@ -319,33 +366,46 @@ Medium: ${request.medium}
 Obnoxiousness dial: ${request.obnoxiousness}/100 (${obnoxiousnessProfile})
 Syrupy kiss-ass dial: ${request.sycophancy}/100 (${sycophancyProfile})`;
 
-  const output = await invokeModel(request.llm, [
-    {
-      role: 'system',
-      content:
-        'You are a highly steerable communications copywriter. Follow user controls exactly, avoid generic safe prose, and return JSON only.',
-    },
-    { role: 'user', content: prompt },
-  ]);
+  const output = await invokeModel(
+    request.llm,
+    [
+      {
+        role: 'system',
+        content:
+          'You are a highly steerable communications copywriter. Follow user controls exactly, avoid generic safe prose, and return only the labeled variant blocks requested by the user.',
+      },
+      { role: 'user', content: prompt },
+    ],
+    generationMaxOutputTokens,
+  );
 
   if (!output) {
     throw new Error('Model did not return output.');
+  }
+
+  const labeledVariants = parseLabeledVariants(output);
+  if (labeledVariants) {
+    return labeledVariants;
   }
 
   return normalizeVariants(parseJsonPayload(output));
 }
 
 export async function rewriteWithLlm(text: string, transform: string, llm: LlmConfig) {
-  const output = await invokeModel(llm, [
-    {
-      role: 'system',
-      content: 'You rewrite communication snippets. Return plain text only and keep meaning intact unless asked otherwise.',
-    },
-    {
-      role: 'user',
-      content: `Rewrite the following text according to this transform: ${transform}\n\nText:\n${text}`,
-    },
-  ]);
+  const output = await invokeModel(
+    llm,
+    [
+      {
+        role: 'system',
+        content: 'You rewrite communication snippets. Return plain text only and keep meaning intact unless asked otherwise.',
+      },
+      {
+        role: 'user',
+        content: `Rewrite the following text according to this transform: ${transform}\n\nText:\n${text}`,
+      },
+    ],
+    rewriteMaxOutputTokens,
+  );
 
   if (!output) {
     throw new Error('Model did not return output.');

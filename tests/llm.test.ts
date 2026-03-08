@@ -126,6 +126,45 @@ describe('llm provider integration', () => {
     expect(variants[1].text).toContain('Unable to generate this variant.');
   });
 
+  it('parses labeled generation output and uses a larger token budget for variant generation', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        output_text: `Most sincere: I own this and I am fixing it now.
+Most concise: My miss. I am correcting it today.
+Most polished: I recognize the impact, own the lapse, and have already started the fix.
+Most believable: I missed the handoff, and that created avoidable confusion for the client.
+Most diplomatic: We had a breakdown at the handoff point, and I should have caught it sooner.
+Most direct: I missed this. Here is the correction plan.`,
+      }),
+    });
+    global.fetch = fetchMock as typeof fetch;
+    process.env.OPENAI_API_KEY = 'env-openai-key-123456789';
+
+    const variants = await generateVariantsWithLlm({
+      scenario: 'I missed a major client handoff and need to repair trust.',
+      mode: 'Professional apology',
+      tone: 'professional',
+      formality: 'executive',
+      accountabilityPosture: 'calibrated ownership',
+      audience: 'client',
+      medium: 'email',
+      obnoxiousness: 10,
+      sycophancy: 15,
+      llm: {
+        provider: 'openai',
+        model: 'gpt-5.3',
+      },
+    });
+
+    expect(variants).toHaveLength(6);
+    expect(variants[0].text).toBe('I own this and I am fixing it now.');
+    expect(variants[5].text).toBe('I missed this. Here is the correction plan.');
+
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body.max_output_tokens).toBe(1400);
+  });
+
   it('returns a clear error when model JSON cannot be parsed', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
