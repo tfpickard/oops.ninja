@@ -19,7 +19,6 @@ type GenerationPage = {
 const llmDefaults = {
   provider: 'openai' as const,
   model: 'gpt-5.3',
-  apiKey: '',
 };
 
 const defaults: GenerationRequest = {
@@ -85,8 +84,8 @@ export function GeneratorClient() {
   }, []);
 
   function validateLlmConfig() {
-    if (!form.llm.apiKey.trim()) {
-      setError('API key is required to use the configured LLM provider.');
+    if (!form.llm.model.trim()) {
+      setError('Model is required to use the configured LLM provider.');
       return false;
     }
 
@@ -224,9 +223,9 @@ export function GeneratorClient() {
       <section className="card llm-config">
         <div>
           <h2>Model Provider</h2>
-          <p className="muted">Choose provider, model, and API key for generation and rewrite requests.</p>
+          <p className="muted">Choose the provider and model. Provider credentials are loaded from the server environment.</p>
         </div>
-        <div className="grid grid-3">
+        <div className="grid grid-2">
           <label>
             Provider
             <select
@@ -241,10 +240,6 @@ export function GeneratorClient() {
           <label>
             Model
             <input value={form.llm.model} onChange={(e) => setForm({ ...form, llm: { ...form.llm, model: e.target.value } })} />
-          </label>
-          <label>
-            API key
-            <input type="password" value={form.llm.apiKey} onChange={(e) => setForm({ ...form, llm: { ...form.llm, apiKey: e.target.value } })} />
           </label>
         </div>
       </section>

@@ -22,6 +22,8 @@ Production-oriented SaaS platform for controlled narrative generation and operat
 ## Quick start
 ```bash
 npm install
+cp .env.example .env.local
+# Set at least one provider key in .env.local, for example OPENAI_API_KEY=...
 npm run dev
 ```
 
@@ -39,7 +41,7 @@ npm run build
 ```bash
 curl -X POST http://localhost:3000/api/v1/generate \
   -H 'content-type: application/json' \
-  -d '{"scenario":"I missed a customer escalation handoff.","mode":"Professional apology","tone":"professional","formality":"executive","accountabilityPosture":"calibrated ownership","audience":"customer","medium":"email","llm":{"provider":"openai","model":"gpt-5.3","apiKey":"$OPENAI_API_KEY"}}'
+  -d '{"scenario":"I missed a customer escalation handoff.","mode":"Professional apology","tone":"professional","formality":"executive","accountabilityPosture":"calibrated ownership","audience":"customer","medium":"email","llm":{"provider":"openai","model":"gpt-5.3"}}'
 
 curl http://localhost:3000/api/v1/generations?limit=10&offset=0
 curl http://localhost:3000/api/v1/analytics/summary

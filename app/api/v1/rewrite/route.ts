@@ -7,6 +7,8 @@ import { getUserContext } from '@/lib/auth';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { trackModerationEvent } from '@/lib/store';
 
+export const runtime = 'nodejs';
+
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   const user = getUserContext();

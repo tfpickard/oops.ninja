@@ -2,8 +2,35 @@ import { variantKinds } from './contracts';
 import type { GenerationRequest, LlmConfig, VariantKind } from './contracts';
 
 type VariantOutput = { kind: VariantKind; text: string };
+type ResolvedLlmConfig = LlmConfig & { apiKey: string };
 
 type OpenAiMessage = { role: 'system' | 'user'; content: string };
+
+const providerEnvVars = {
+  openai: 'OPENAI_API_KEY',
+  anthropic: 'ANTHROPIC_API_KEY',
+  openrouter: 'OPENROUTER_API_KEY',
+} as const;
+
+const providerLabels = {
+  openai: 'OpenAI',
+  anthropic: 'Anthropic',
+  openrouter: 'OpenRouter',
+} as const;
+
+function resolveLlmConfig(llm: LlmConfig): ResolvedLlmConfig {
+  const envVar = providerEnvVars[llm.provider];
+  const apiKey = process.env[envVar]?.trim();
+
+  if (!apiKey) {
+    throw new Error(`${providerLabels[llm.provider]} API key is not configured. Set ${envVar} in the server environment.`);
+  }
+
+  return {
+    ...llm,
+    apiKey,
+  };
+}
 
 function parseJsonPayload(raw: string) {
   const fenced = raw.match(/```json\s*([\s\S]*?)```/i);
@@ -54,7 +81,7 @@ function extractTextFromResponseOutput(output: unknown): string {
   return '';
 }
 
-async function invokeOpenAi(llm: LlmConfig, messages: OpenAiMessage[]) {
+async function invokeOpenAi(llm: ResolvedLlmConfig, messages: OpenAiMessage[]) {
   if (isGpt5Model(llm.model)) {
     const res = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
@@ -98,7 +125,7 @@ async function invokeOpenAi(llm: LlmConfig, messages: OpenAiMessage[]) {
   return data?.choices?.[0]?.message?.content as string;
 }
 
-async function invokeAnthropic(llm: LlmConfig, messages: OpenAiMessage[]) {
+async function invokeAnthropic(llm: ResolvedLlmConfig, messages: OpenAiMessage[]) {
   const userPrompt = messages.filter((entry) => entry.role === 'user').map((entry) => entry.content).join('\n\n');
   const systemPrompt = messages.filter((entry) => entry.role === 'system').map((entry) => entry.content).join('\n\n');
 
@@ -125,7 +152,7 @@ async function invokeAnthropic(llm: LlmConfig, messages: OpenAiMessage[]) {
   return data?.content?.[0]?.text as string;
 }
 
-async function invokeOpenRouter(llm: LlmConfig, messages: OpenAiMessage[]) {
+async function invokeOpenRouter(llm: ResolvedLlmConfig, messages: OpenAiMessage[]) {
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -148,9 +175,11 @@ async function invokeOpenRouter(llm: LlmConfig, messages: OpenAiMessage[]) {
 }
 
 async function invokeModel(llm: LlmConfig, messages: OpenAiMessage[]) {
-  if (llm.provider === 'anthropic') return invokeAnthropic(llm, messages);
-  if (llm.provider === 'openrouter') return invokeOpenRouter(llm, messages);
-  return invokeOpenAi(llm, messages);
+  const resolved = resolveLlmConfig(llm);
+
+  if (resolved.provider === 'anthropic') return invokeAnthropic(resolved, messages);
+  if (resolved.provider === 'openrouter') return invokeOpenRouter(resolved, messages);
+  return invokeOpenAi(resolved, messages);
 }
 
 export async function generateVariantsWithLlm(request: GenerationRequest) {
