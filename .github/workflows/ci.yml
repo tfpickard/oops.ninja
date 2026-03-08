@@ -77,10 +77,10 @@ jobs:
       - name: Install Vercel CLI
         run: bun add -g vercel
       - name: Validate Vercel build (linked project)
-        if: ${{ secrets.VERCEL_TOKEN != "" }}
+        if: ${{ secrets.VERCEL_TOKEN != '' }}
         run: vercel build --yes --token "${{ secrets.VERCEL_TOKEN }}"
       - name: Fallback framework build (no Vercel token available)
-        if: ${{ secrets.VERCEL_TOKEN == "" }}
+        if: ${{ secrets.VERCEL_TOKEN == '' }}
         run: bun run build
 
   security:

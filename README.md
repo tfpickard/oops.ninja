@@ -1,13 +1,23 @@
-# oops.ninja alpha
+# oops.ninja
 
-Production-oriented alpha for controlled narrative generation.
+Production-oriented SaaS platform for controlled narrative generation and operational communication recovery.
 
-## Features included
-- Next.js App Router frontend (`/` and `/dashboard`)
-- REST API surface for generation, rewrite, templates, presets, me, usage, generations, api-keys, health, and openapi
-- Policy moderation guardrails in enterprise language
-- In-memory multi-user context, API key issuance, and rate limiting
-- Prisma schema scaffold for Postgres production storage
+## Product status
+
+### Phase 1 complete
+- Landing page and operational dashboard UX
+- Generation + rewrite APIs with moderation and rate limiting
+- Saved generation history and usage snapshots
+- API key lifecycle (create/list/delete)
+- OpenAPI endpoint and documentation route
+
+### Phase 2 complete
+- Admin command center
+- Organization management API
+- Billing profile endpoint and portal links contract
+- Analytics summary API
+- Share link workflows for generation artifacts
+- TypeScript SDK snippet endpoint and docs route
 
 ## Quick start
 ```bash
@@ -30,4 +40,8 @@ npm run build
 curl -X POST http://localhost:3000/api/v1/generate \
   -H 'content-type: application/json' \
   -d '{"scenario":"I missed a customer escalation handoff.","mode":"Professional apology","tone":"professional","formality":"executive","accountabilityPosture":"calibrated ownership","audience":"customer","medium":"email"}'
+
+curl http://localhost:3000/api/v1/generations?limit=10&offset=0
+curl http://localhost:3000/api/v1/analytics/summary
+curl http://localhost:3000/api/v1/billing/portal
 ```
