@@ -41,7 +41,7 @@ curl -X POST http://localhost:3000/api/v1/generate \
   -H 'content-type: application/json' \
   -d '{"scenario":"I missed a customer escalation handoff.","mode":"Professional apology","tone":"professional","formality":"executive","accountabilityPosture":"calibrated ownership","audience":"customer","medium":"email"}'
 
-curl http://localhost:3000/api/v1/generations?limit=10&offset=0
+curl 'http://localhost:3000/api/v1/generations?limit=10&offset=0'
 curl http://localhost:3000/api/v1/analytics/summary
 curl http://localhost:3000/api/v1/billing/portal
 ```
