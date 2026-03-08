@@ -30,7 +30,53 @@ function normalizeVariants(payload: unknown): VariantOutput[] {
   }));
 }
 
+function isGpt5Model(model: string) {
+  return model.toLowerCase().startsWith('gpt-5');
+}
+
+function extractTextFromResponseOutput(output: unknown): string {
+  if (!Array.isArray(output)) return '';
+
+  for (const item of output) {
+    if (!item || typeof item !== 'object') continue;
+    const content = (item as { content?: unknown }).content;
+    if (!Array.isArray(content)) continue;
+
+    for (const chunk of content) {
+      if (!chunk || typeof chunk !== 'object') continue;
+      const text = (chunk as { text?: unknown }).text;
+      if (typeof text === 'string' && text.trim()) {
+        return text;
+      }
+    }
+  }
+
+  return '';
+}
+
 async function invokeOpenAi(llm: LlmConfig, messages: OpenAiMessage[]) {
+  if (isGpt5Model(llm.model)) {
+    const res = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        Authorization: `Bearer ${llm.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: llm.model,
+        input: messages,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data?.error?.message ?? 'OpenAI request failed.');
+    }
+
+    const outputText = typeof data?.output_text === 'string' ? data.output_text : extractTextFromResponseOutput(data?.output);
+    return outputText;
+  }
+
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {

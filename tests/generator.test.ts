@@ -11,7 +11,7 @@ describe('generator', () => {
       accountabilityPosture: 'calibrated ownership',
       audience: 'customer',
       medium: 'email',
-      llm: { provider: 'openai', model: 'gpt-4.1-mini', apiKey: 'test-api-key-12345' },
+      llm: { provider: 'openai', model: 'gpt-5.3', apiKey: 'test-api-key-12345' },
     });
 
     expect(variants).toHaveLength(6);

@@ -54,7 +54,7 @@ export const variantKinds = [
 
 export const llmConfigSchema = z.object({
   provider: z.enum(['openai', 'anthropic', 'openrouter']).default('openai'),
-  model: z.string().min(3).default('gpt-4.1-mini'),
+  model: z.string().min(3).default('gpt-5.3'),
   apiKey: z.string().min(10),
 });
 
