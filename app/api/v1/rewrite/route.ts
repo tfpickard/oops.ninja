@@ -1,11 +1,13 @@
 import crypto from 'crypto';
 import { fail, ok } from '@/lib/http';
 import { rewriteRequestSchema } from '@/lib/contracts';
-import { rewriteText } from '@/lib/generator';
+import { rewriteWithLlm } from '@/lib/llm';
 import { moderateScenario } from '@/lib/policy';
 import { getUserContext } from '@/lib/auth';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { trackModerationEvent } from '@/lib/store';
+
+export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
@@ -22,5 +24,10 @@ export async function POST(request: Request) {
     return fail(moderation.reason ?? 'Policy restricted.', requestId, 403, 'POLICY_RESTRICTED');
   }
 
-  return ok({ output: rewriteText(parsed.data.text, parsed.data.transform) }, requestId);
+  try {
+    return ok({ output: await rewriteWithLlm(parsed.data.text, parsed.data.transform, parsed.data.llm) }, requestId);
+  } catch (err) {
+    console.error('LLM provider error during rewrite', { requestId, error: err });
+    return fail('LLM provider failed to process the rewrite request. Please try again.', requestId, 502, 'LLM_PROVIDER_ERROR');
+  }
 }

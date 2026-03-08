@@ -43,6 +43,25 @@ export const generationModes = [
   'Extremely concise “my bad” in enterprise format',
 ] as const;
 
+export const variantKinds = [
+  'Most sincere',
+  'Most concise',
+  'Most polished',
+  'Most believable',
+  'Most diplomatic',
+  'Most direct',
+] as const;
+
+export const llmConfigSchema = z.object({
+  provider: z.enum(['openai', 'anthropic', 'openrouter']).default('openai'),
+  model: z.string().min(3).default('gpt-5.3'),
+});
+
+const llmDefaults = {
+  provider: 'openai' as const,
+  model: 'gpt-5.3',
+};
+
 export const generationRequestSchema = z.object({
   scenario: z.string().min(10),
   mode: z.enum(generationModes),
@@ -57,20 +76,18 @@ export const generationRequestSchema = z.object({
   ]).default('calibrated ownership'),
   audience: z.string().default('coworker'),
   medium: z.string().default('email'),
+  obnoxiousness: z.number().int().min(0).max(100).default(24),
+  sycophancy: z.number().int().min(0).max(100).default(18),
+  llm: llmConfigSchema.default(llmDefaults),
 });
 
 export const rewriteRequestSchema = z.object({
   text: z.string().min(5),
   transform: z.string().min(3),
+  llm: llmConfigSchema.default(llmDefaults),
 });
 
+export type LlmConfig = z.infer<typeof llmConfigSchema>;
 export type GenerationRequest = z.infer<typeof generationRequestSchema>;
 export type RewriteRequest = z.infer<typeof rewriteRequestSchema>;
-
-export type VariantKind =
-  | 'Most sincere'
-  | 'Most concise'
-  | 'Most polished'
-  | 'Most believable'
-  | 'Most diplomatic'
-  | 'Most direct';
+export type VariantKind = (typeof variantKinds)[number];
